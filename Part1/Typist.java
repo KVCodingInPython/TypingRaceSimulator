@@ -6,8 +6,8 @@
  * He left a sticky note: "the slide-back thing is optional probably".
  * It is not optional. Good luck.
  *
- * @author (your name)
- * @version (a version number or a date)
+ * @author Kaloyan Velikov (your name)
+ * @version 1.0 (a version number or a date)
  */
 public class Typist
 {
@@ -17,6 +17,13 @@ public class Typist
     // Another tracks whether the typist is currently burnt out.
     // A third tracks HOW MANY turns of burnout remain (not just whether they are burnt out).
     // The remaining three should be fairly obvious.
+
+    String typist_name;
+    char typist_position;
+    int typist_progress;
+    boolean TYPISTISBURNTOUT;
+    int burnout_remaining;
+    double typist_accuracy;
 
 
 
@@ -32,6 +39,9 @@ public class Typist
      */
     public Typist(char typistSymbol, String typistName, double typistAccuracy)
     {
+        this.typist_position = typistSymbol;
+        this.typist_name = typistName;
+        this.typist_accuracy = typistAccuracy;
 
     }
 
@@ -46,6 +56,12 @@ public class Typist
      */
     public void burnOut(int turns)
     {
+        while (this.TYPISTISBURNTOUT == true)
+        {
+            this.burnout_remaining = turns;
+
+        }
+        return;
 
     }
 
@@ -56,7 +72,20 @@ public class Typist
      */
     public void recoverFromBurnout()
     {
-
+        while (this.TYPISTISBURNTOUT == true) {
+            if (this.burnout_remaining != 0)
+            {
+                this.burnout_remaining = this.burnout_remaining - 1;
+                System.out.println(this.burnout_remaining);
+                return;
+            }
+            else {
+                this.TYPISTISBURNTOUT = false;
+                System.out.println(this.TYPISTISBURNTOUT);
+                System.out.println(this.burnout_remaining);
+            }
+        }
+        return;
     }
 
     /**
@@ -66,7 +95,7 @@ public class Typist
      */
     public double getAccuracy()
     {
-        return 0.0; // placeholder - replace with correct implementation
+        return this.typist_accuracy; // placeholder - replace with correct implementation
     }
 
     /**
@@ -78,7 +107,7 @@ public class Typist
      */
     public int getProgress()
     {
-        return 0; // placeholder - replace with correct implementation
+        return this.typist_progress; // placeholder - replace with correct implementation
     }
 
     /**
@@ -88,7 +117,7 @@ public class Typist
      */
     public String getName()
     {
-        return ""; // placeholder - replace with correct implementation
+        return (String) this.typist_name; // placeholder - replace with correct implementation
     }
 
     /**
@@ -98,7 +127,7 @@ public class Typist
      */
     public char getSymbol()
     {
-        return ' '; // placeholder - replace with correct implementation
+        return this.typist_position; // placeholder - replace with correct implementation
     }
 
     /**
@@ -109,6 +138,10 @@ public class Typist
      */
     public int getBurnoutTurnsRemaining()
     {
+        if (this.TYPISTISBURNTOUT == true)
+        {
+            return this.burnout_remaining;
+        }
         return 0; // placeholder - replace with correct implementation
     }
 
@@ -118,6 +151,10 @@ public class Typist
      */
     public void resetToStart()
     {
+        this.TYPISTISBURNTOUT = false;
+        this.burnout_remaining = 0;
+        this.typist_progress = 0;
+        return;
 
     }
 
@@ -128,6 +165,10 @@ public class Typist
      */
     public boolean isBurntOut()
     {
+        if (this.TYPISTISBURNTOUT == true)
+        {
+            return true;
+        }
         return false; // placeholder - replace with correct implementation
     }
 
@@ -137,6 +178,12 @@ public class Typist
      */
     public void typeCharacter()
     {
+        if (this.TYPISTISBURNTOUT == false)
+        {
+            this.typist_progress = this.typist_progress + 1;
+            return;
+        }
+        return;
 
     }
 
@@ -148,6 +195,22 @@ public class Typist
      */
     public void slideBack(int amount)
     {
+        while (amount > 0)
+        {
+            if ((this.typist_progress - amount) >= 0)
+            {
+                this.typist_progress = this.typist_progress - amount;
+                return;
+            }
+            else {
+                this.typist_progress = 0;
+                System.out.println("Typist slides back to start");
+                return;
+            }
+            
+        }
+        return;
+        
 
     }
 
@@ -159,6 +222,20 @@ public class Typist
      */
     public void setAccuracy(double newAccuracy)
     {
+        if (newAccuracy >= 0.0 && newAccuracy <= 1.0)
+        {
+            this.typist_accuracy = newAccuracy;
+            return;
+        }
+        else if (newAccuracy < 0.0) {
+            this.typist_accuracy = 0.0;
+            return;
+        }
+        else if (newAccuracy > 1.0) {
+            this.typist_accuracy = 1.0;
+            return;
+        }
+        return;
 
     }
 
@@ -169,7 +246,85 @@ public class Typist
      */
     public void setSymbol(char newSymbol)
     {
+        this.typist_position = newSymbol;
+        return;
 
     }
 
+
+
+
+
+
+}
+class Main {
+    public void main(String[] args) {
+        // Create new Typist object
+        Typist typer1 = new Typist('①', "TURBOFINGERS", 0.85);
+        /*
+         'Typist Progress cannot go below 0' tests: Test Case 1
+         typer1.resetToStart();
+         typer1.slideBack(5);
+         System.out.println(typer1.isBurntOut());
+        */
+
+        // 'Burnout correctly decrements turn by turn and clears at zero' test: Test Case 2
+        /*
+        typer1.TYPISTISBURNTOUT = true;
+        typer1.recoverFromBurnout();
+        typer1.burnout_remaining = 5;
+        typer1.TYPISTISBURNTOUT = true;
+        typer1.recoverFromBurnout();
+        typer1.recoverFromBurnout();
+        typer1.recoverFromBurnout();
+        typer1.recoverFromBurnout();
+        typer1.recoverFromBurnout();
+        typer1.recoverFromBurnout();
+        */
+
+        // 'resetToStart() method clears both progress and burnout state' tests: Test Case 3
+
+        /* typer1.TYPISTISBURNTOUT = true;
+        typer1.burnout_remaining = 5;
+        typer1.typist_progress = 10;
+
+        System.out.println(typer1.TYPISTISBURNTOUT);
+        System.out.println(typer1.burnout_remaining);
+        System.out.println(typer1.typist_progress);
+
+        typer1.resetToStart();
+        System.out.println(typer1.TYPISTISBURNTOUT);
+        System.out.println(typer1.burnout_remaining);
+        System.out.println(typer1.typist_progress);
+        */
+
+       // Accuracy range Tests: Test Case 4
+       /*
+        System.out.println(typer1.getAccuracy());
+        typer1.setAccuracy(5.0);
+        System.out.println(typer1.getAccuracy());
+        typer1.setAccuracy(0.0);
+        System.out.println(typer1.getAccuracy());
+        typer1.setAccuracy(0.8);
+        System.out.println(typer1.getAccuracy());
+        typer1.setAccuracy(1.0);
+        System.out.println(typer1.getAccuracy());
+        */
+
+       // Normal forward movement via typeCharacter() : Test Case 4
+       typer1.resetToStart();
+       System.out.println(typer1.typist_progress);
+       typer1.typeCharacter();
+       System.out.println(typer1.typist_progress);
+       typer1.typeCharacter();
+       typer1.typeCharacter();
+       System.out.println(typer1.typist_progress);
+       typer1.typist_progress = 20;
+       typer1.typeCharacter();
+       System.out.println(typer1.typist_progress);
+
+       return;
+       
+
+    }
 }
