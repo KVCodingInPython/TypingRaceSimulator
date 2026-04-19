@@ -56,13 +56,9 @@ public class Typist
      */
     public void burnOut(int turns)
     {
-        while (turns > 0)
-        {
-            this.TYPISTISBURNTOUT = true;
-            turns = turns - 1;
-            this.burnout_remaining = turns;
-
-        }
+        this.TYPISTISBURNTOUT = true;
+        this.burnout_remaining = turns;
+        
         return;
 
     }
@@ -74,16 +70,19 @@ public class Typist
      */
     public void recoverFromBurnout()
     {
-            if (this.burnout_remaining != 0)
+            if (!this.TYPISTISBURNTOUT)
             {
-                this.burnout_remaining = this.burnout_remaining - 1;
-                System.out.println(this.burnout_remaining);
                 return;
             }
-            else {
+
+            if (this.burnout_remaining > 0)
+            {
+                this.burnout_remaining = this.burnout_remaining - 1;
+            }
+
+            if (this.burnout_remaining == 0)
+            {
                 this.TYPISTISBURNTOUT = false;
-                System.out.println(this.TYPISTISBURNTOUT);
-                System.out.println(this.burnout_remaining);
             }
         return;
     }
@@ -138,11 +137,11 @@ public class Typist
      *
      * @return burnout turns remaining as a non-negative integer
      */
-    public int getBurnoutTurnsRemaining(int turns)
+    public int getBurnoutTurnsRemaining()
     {
         if (this.TYPISTISBURNTOUT == true)
         {
-            return turns;
+            return this.burnout_remaining;
         }
         return 0; // placeholder - replace with correct implementation
     }
@@ -285,7 +284,6 @@ class Main {
         */
 
         // 'resetToStart() method clears both progress and burnout state' tests: Test Case 3
-        /*
         System.out.println("h");;
         typer1.TYPISTISBURNTOUT = true;
         typer1.burnOut(5);
@@ -293,13 +291,12 @@ class Main {
         {
             typer1.typeCharacter();
         }
-        int turns = 5;
 
-        System.out.println(typer1.getBurnoutTurnsRemaining(turns));
+        System.out.println(typer1.getBurnoutTurnsRemaining());
         System.out.println(typer1.getProgress());
 
         typer1.resetToStart();
-        System.out.println(typer1.getBurnoutTurnsRemaining(turns));
+        System.out.println(typer1.getBurnoutTurnsRemaining());
         System.out.println(typer1.getProgress());
 
         // 'Burnout prevents typing' test: Test Case 3
@@ -312,10 +309,10 @@ class Main {
         System.out.println("Progress before burnout: " + typer1.getProgress());
 
         // Burn out for 3 turns
-        turns = 3;
+        int turns = 3;
         typer1.burnOut(turns);
         System.out.println("Is burnt out? " + typer1.isBurntOut());
-        System.out.println("Burnout turns remaining: " + typer1.getBurnoutTurnsRemaining(turns));
+        System.out.println("Burnout turns remaining: " + typer1.getBurnoutTurnsRemaining());
 
         // Try to type while burnt out (should NOT increase progress)
         typer1.typeCharacter();
@@ -326,19 +323,19 @@ class Main {
         // Recover from burnout
         System.out.println("\n--- Recovering ---");
         typer1.recoverFromBurnout();
-        System.out.println("After 1st recovery - Remaining: " + typer1.getBurnoutTurnsRemaining(turns) + ", Is burnt out? " + typer1.isBurntOut());
+        System.out.println("After 1st recovery - Remaining: " + typer1.getBurnoutTurnsRemaining() + ", Is burnt out? " + typer1.isBurntOut());
 
         typer1.recoverFromBurnout();
-        System.out.println("After 2nd recovery - Remaining: " + typer1.getBurnoutTurnsRemaining(turns) + ", Is burnt out? " + typer1.isBurntOut());
+        System.out.println("After 2nd recovery - Remaining: " + typer1.getBurnoutTurnsRemaining() + ", Is burnt out? " + typer1.isBurntOut());
 
         typer1.recoverFromBurnout();
-        System.out.println("After 3rd recovery - Remaining: " + typer1.getBurnoutTurnsRemaining(turns) + ", Is burnt out? " + typer1.isBurntOut());
+        System.out.println("After 3rd recovery - Remaining: " + typer1.getBurnoutTurnsRemaining() + ", Is burnt out? " + typer1.isBurntOut());
 
         // Try typing again after recovery
         typer1.typeCharacter();
         typer1.typeCharacter();
         System.out.println("Progress after recovery (should be 4): " + typer1.getProgress());
-        */
+        
                 
 
        // Accuracy range Tests: Test Case 4
