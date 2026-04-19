@@ -18,12 +18,12 @@ public class Typist
     // A third tracks HOW MANY turns of burnout remain (not just whether they are burnt out).
     // The remaining three should be fairly obvious.
 
-    String typist_name;
-    char typist_position;
-    int typist_progress;
-    boolean TYPISTISBURNTOUT;
-    int burnout_remaining;
-    double typist_accuracy;
+    final private String typist_name;
+    private char typist_position;
+    private int typist_progress;
+    public boolean TYPISTISBURNTOUT;
+    private int burnout_remaining;
+    private double typist_accuracy;
 
 
 
@@ -56,8 +56,10 @@ public class Typist
      */
     public void burnOut(int turns)
     {
-        while (this.TYPISTISBURNTOUT == true)
+        while (turns > 0)
         {
+            this.TYPISTISBURNTOUT = true;
+            turns = turns - 1;
             this.burnout_remaining = turns;
 
         }
@@ -72,7 +74,6 @@ public class Typist
      */
     public void recoverFromBurnout()
     {
-        while (this.TYPISTISBURNTOUT == true) {
             if (this.burnout_remaining != 0)
             {
                 this.burnout_remaining = this.burnout_remaining - 1;
@@ -84,7 +85,6 @@ public class Typist
                 System.out.println(this.TYPISTISBURNTOUT);
                 System.out.println(this.burnout_remaining);
             }
-        }
         return;
     }
 
@@ -97,6 +97,8 @@ public class Typist
     {
         return this.typist_accuracy; // placeholder - replace with correct implementation
     }
+
+
 
     /**
      * Returns the typist's current progress through the passage.
@@ -136,11 +138,11 @@ public class Typist
      *
      * @return burnout turns remaining as a non-negative integer
      */
-    public int getBurnoutTurnsRemaining()
+    public int getBurnoutTurnsRemaining(int turns)
     {
         if (this.TYPISTISBURNTOUT == true)
         {
-            return this.burnout_remaining;
+            return turns;
         }
         return 0; // placeholder - replace with correct implementation
     }
@@ -258,7 +260,7 @@ public class Typist
 
 }
 class Main {
-    public void main(String[] args) {
+    public static void main(String[] args) {
         // Create new Typist object
         Typist typer1 = new Typist('①', "TURBOFINGERS", 0.85);
         /*
@@ -283,24 +285,65 @@ class Main {
         */
 
         // 'resetToStart() method clears both progress and burnout state' tests: Test Case 3
+        /*
+        System.out.println("h");;
+        typer1.TYPISTISBURNTOUT = true;
+        typer1.burnOut(5);
+        for (int i = 0; i <= 10; i++)
+        {
+            typer1.typeCharacter();
+        }
+        int turns = 5;
 
-        /* typer1.TYPISTISBURNTOUT = true;
-        typer1.burnout_remaining = 5;
-        typer1.typist_progress = 10;
-
-        System.out.println(typer1.TYPISTISBURNTOUT);
-        System.out.println(typer1.burnout_remaining);
-        System.out.println(typer1.typist_progress);
+        System.out.println(typer1.getBurnoutTurnsRemaining(turns));
+        System.out.println(typer1.getProgress());
 
         typer1.resetToStart();
-        System.out.println(typer1.TYPISTISBURNTOUT);
-        System.out.println(typer1.burnout_remaining);
-        System.out.println(typer1.typist_progress);
+        System.out.println(typer1.getBurnoutTurnsRemaining(turns));
+        System.out.println(typer1.getProgress());
+
+        // 'Burnout prevents typing' test: Test Case 3
+        System.out.println("=== BURNOUT TEST ===");
+
+        // Start fresh and type some characters
+        typer1.resetToStart();
+        typer1.typeCharacter();
+        typer1.typeCharacter();
+        System.out.println("Progress before burnout: " + typer1.getProgress());
+
+        // Burn out for 3 turns
+        turns = 3;
+        typer1.burnOut(turns);
+        System.out.println("Is burnt out? " + typer1.isBurntOut());
+        System.out.println("Burnout turns remaining: " + typer1.getBurnoutTurnsRemaining(turns));
+
+        // Try to type while burnt out (should NOT increase progress)
+        typer1.typeCharacter();
+        typer1.typeCharacter();
+        typer1.typeCharacter();
+        System.out.println("Progress while burnt out (should be 2): " + typer1.getProgress());
+
+        // Recover from burnout
+        System.out.println("\n--- Recovering ---");
+        typer1.recoverFromBurnout();
+        System.out.println("After 1st recovery - Remaining: " + typer1.getBurnoutTurnsRemaining(turns) + ", Is burnt out? " + typer1.isBurntOut());
+
+        typer1.recoverFromBurnout();
+        System.out.println("After 2nd recovery - Remaining: " + typer1.getBurnoutTurnsRemaining(turns) + ", Is burnt out? " + typer1.isBurntOut());
+
+        typer1.recoverFromBurnout();
+        System.out.println("After 3rd recovery - Remaining: " + typer1.getBurnoutTurnsRemaining(turns) + ", Is burnt out? " + typer1.isBurntOut());
+
+        // Try typing again after recovery
+        typer1.typeCharacter();
+        typer1.typeCharacter();
+        System.out.println("Progress after recovery (should be 4): " + typer1.getProgress());
         */
+                
 
        // Accuracy range Tests: Test Case 4
-       /*
-        System.out.println(typer1.getAccuracy());
+       
+        /* System.out.println(typer1.getAccuracy());
         typer1.setAccuracy(5.0);
         System.out.println(typer1.getAccuracy());
         typer1.setAccuracy(0.0);
@@ -312,18 +355,19 @@ class Main {
         */
 
        // Normal forward movement via typeCharacter() : Test Case 4
-       typer1.resetToStart();
-       System.out.println(typer1.typist_progress);
-       typer1.typeCharacter();
-       System.out.println(typer1.typist_progress);
-       typer1.typeCharacter();
-       typer1.typeCharacter();
-       System.out.println(typer1.typist_progress);
-       typer1.typist_progress = 20;
-       typer1.typeCharacter();
-       System.out.println(typer1.typist_progress);
 
-       return;
+       /* typer1.resetToStart();
+       System.out.println(typer1.getProgress());
+       typer1.typeCharacter();
+       System.out.println(typer1.getProgress());
+       typer1.typeCharacter();
+       typer1.typeCharacter();
+       System.out.println(typer1.getProgress());
+       typer1.setProgress(20);
+       typer1.typeCharacter();
+       System.out.println(typer1.getProgress());
+
+       return; */
        
 
     }
