@@ -1,6 +1,4 @@
 import java.util.concurrent.TimeUnit;
-import java.lang.Math;
-
 /**
  * A typing race simulation. Three typists race to complete a passage of text,
  * advancing character by character — or sliding backwards when they mistype.
@@ -74,7 +72,7 @@ public class TypingRace
      * Note from Ty: "I didn't bother printing the winner at the end,
      * you can probably figure that out yourself."
      */
-    public void startRace()
+    public void startRace(boolean Mistyped)
     {
         boolean finished = false;
 
@@ -82,16 +80,17 @@ public class TypingRace
         // (Ty was in a hurry here)
         seat1Typist.resetToStart();
         seat2Typist.resetToStart();
+        seat3Typist.resetToStart();
 
         while (!finished)
         {
             // Advance each typist by one turn
-            advanceTypist(seat1Typist);
-            advanceTypist(seat2Typist);
-            advanceTypist(seat3Typist);
+            advanceTypist(seat1Typist, SLIDE_BACK_AMOUNT, BURNOUT_DURATION);
+            advanceTypist(seat2Typist, SLIDE_BACK_AMOUNT, BURNOUT_DURATION);
+            advanceTypist(seat3Typist, SLIDE_BACK_AMOUNT, BURNOUT_DURATION);
 
             // Print the current state of the race
-            printRace();
+            printRace(passageLength, Mistyped);
 
             // Check if any typist has finished the passage
             if ( raceFinishedBy(seat1Typist) || raceFinishedBy(seat2Typist) || raceFinishedBy(seat3Typist) )
@@ -105,7 +104,20 @@ public class TypingRace
             } catch (Exception e) {}
         }
 
+
         // TODO (Task 2a): Print the winner's name here
+        if (raceFinishedBy(seat1Typist))
+        {
+            System.out.println("Winner: " + seat1Typist.getName());
+        }
+        else if (raceFinishedBy(seat2Typist))
+        {
+            System.out.println("Winner: " + seat2Typist.getName());
+        }
+        else if (raceFinishedBy(seat3Typist))
+        {
+            System.out.println("Winner: " + seat3Typist.getName());
+        }
     }
 
     /**
@@ -121,8 +133,9 @@ public class TypingRace
      *
      * @param theTypist the typist to advance
      */
-    private void advanceTypist(Typist theTypist)
+    private void advanceTypist(Typist theTypist, int SLIDE_BACK_AMOUNT, int BURNOUT_DURATION)
     {
+        boolean Mistyped = false;
         if (theTypist.isBurntOut())
         {
             // Recovering from burnout — skip this turn
@@ -134,12 +147,14 @@ public class TypingRace
         if (Math.random() < theTypist.getAccuracy())
         {
             theTypist.typeCharacter();
+            Mistyped = false;
         }
 
         // Mistype check — the probability should reflect the typist's accuracy
         if (Math.random() < theTypist.getAccuracy() * MISTYPE_BASE_CHANCE)
         {
             theTypist.slideBack(SLIDE_BACK_AMOUNT);
+            Mistyped = true;
         }
 
         // Burnout check — pushing too hard increases burnout risk
@@ -174,7 +189,7 @@ public class TypingRace
      * Shows each typist's position along the passage, burnout state,
      * and a WPM estimate based on current progress.
      */
-    private void printRace()
+    private void printRace(int passageLength, boolean Mistyped)
     {
         System.out.print('\u000C'); // Clear terminal
 
@@ -182,13 +197,25 @@ public class TypingRace
         multiplePrint('=', passageLength + 3);
         System.out.println();
 
-        printSeat(seat1Typist);
+        if (seat1Typist.isBurntOut() == true)
+        {
+            System.out.print("zz");
+        }
+        printSeat(seat1Typist, Mistyped);
         System.out.println();
 
-        printSeat(seat2Typist);
+        if (seat2Typist.isBurntOut() == true)
+        {
+            System.out.print("zz");
+        }
+        printSeat(seat2Typist, Mistyped);
         System.out.println();
 
-        printSeat(seat3Typist);
+        if (seat3Typist.isBurntOut() == true)
+        {
+            System.out.print("zz");
+        }
+        printSeat(seat3Typist, Mistyped);
         System.out.println();
 
         multiplePrint('=', passageLength + 3);
@@ -208,7 +235,7 @@ public class TypingRace
      *
      * @param theTypist the typist whose lane to print
      */
-    private void printSeat(Typist theTypist)
+    private void printSeat(Typist theTypist, boolean Mistyped)
     {
         int spacesBefore = theTypist.getProgress();
         int spacesAfter  = passageLength - theTypist.getProgress();
@@ -221,8 +248,13 @@ public class TypingRace
         System.out.print(theTypist.getSymbol());
         if (theTypist.isBurntOut())
         {
-            System.out.print('~');
+            System.out.print("zz");
             spacesAfter--; // symbol + ~ together take two characters
+        }
+        if (Mistyped == true)
+        {
+            System.out.print("<");
+            spacesAfter--; // symbol + [<] together take two characters
         }
 
         multiplePrint(' ', spacesAfter);
@@ -258,4 +290,14 @@ public class TypingRace
             i = i + 1;
         }
     }
+
+    public static void main(String[] args) {
+    boolean Mistyped = false;
+    TypingRace race = new TypingRace(40);
+    race.addTypist(new Typist('①', "TURBOFINGERS", 0.85), 1);
+    race.addTypist(new Typist('②', "QWERTY_QUEEN",  0.60), 2);
+    race.addTypist(new Typist('③', "HUNT_N_PECK",   0.30), 3);
+    race.startRace(Mistyped);
+    
+}
 }
