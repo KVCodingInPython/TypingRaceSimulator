@@ -42,7 +42,9 @@ public class Typist
         this.typist_position = typistSymbol;
         this.typist_name = typistName;
         this.typist_accuracy = typistAccuracy;
-
+        this.typist_progress = 0;
+        this.TYPISTISBURNTOUT = false;
+        this.burnout_remaining = 0;
     }
 
 
@@ -94,7 +96,7 @@ public class Typist
      */
     public double getAccuracy()
     {
-        return this.typist_accuracy; // placeholder - replace with correct implementation
+        return this.typist_accuracy;
     }
 
 
@@ -108,7 +110,7 @@ public class Typist
      */
     public int getProgress()
     {
-        return this.typist_progress; // placeholder - replace with correct implementation
+        return this.typist_progress;
     }
 
     /**
@@ -118,7 +120,7 @@ public class Typist
      */
     public String getName()
     {
-        return (String) this.typist_name; // placeholder - replace with correct implementation
+        return this.typist_name;
     }
 
     /**
@@ -128,7 +130,7 @@ public class Typist
      */
     public char getSymbol()
     {
-        return this.typist_position; // placeholder - replace with correct implementation
+        return this.typist_position;
     }
 
     /**
@@ -143,7 +145,7 @@ public class Typist
         {
             return this.burnout_remaining;
         }
-        return 0; // placeholder - replace with correct implementation
+        return 0;
     }
 
     /**
@@ -159,6 +161,7 @@ public class Typist
 
     }
 
+
     /**
      * Returns true if this typist is currently burnt out, false otherwise.
      *
@@ -166,11 +169,7 @@ public class Typist
      */
     public boolean isBurntOut()
     {
-        if (this.TYPISTISBURNTOUT == true)
-        {
-            return true;
-        }
-        return false; // placeholder - replace with correct implementation
+        return this.TYPISTISBURNTOUT;
     }
 
     /**
@@ -196,19 +195,20 @@ public class Typist
      */
     public void slideBack(int amount)
     {
-        while (amount > 0)
+   
+        if (amount > 0)
         {
             if ((this.typist_progress - amount) >= 0)
             {
                 this.typist_progress = this.typist_progress - amount;
-                return;
+             
             }
-            else {
+            else
+            {
                 this.typist_progress = 0;
                 System.out.println("Typist slides back to start");
-                return;
+             
             }
-            
         }
         return;
         
