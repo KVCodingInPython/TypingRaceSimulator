@@ -72,8 +72,9 @@ public class TypingRace
      * Note from Ty: "I didn't bother printing the winner at the end,
      * you can probably figure that out yourself."
      */
-    public void startRace(boolean Mistyped)
+    public void startRace()
     {
+        long startNanos = System.nanoTime();
         boolean finished = false;
 
         // Reset all typists to the start of the passage
@@ -90,7 +91,7 @@ public class TypingRace
             advanceTypist(seat3Typist, SLIDE_BACK_AMOUNT, BURNOUT_DURATION);
 
             // Print the current state of the race
-            printRace(passageLength, Mistyped);
+            printRace(passageLength, startNanos);
 
             // Check if any typist has finished the passage
             if ( raceFinishedBy(seat1Typist) || raceFinishedBy(seat2Typist) || raceFinishedBy(seat3Typist) )
@@ -135,7 +136,7 @@ public class TypingRace
      */
     private void advanceTypist(Typist theTypist, int SLIDE_BACK_AMOUNT, int BURNOUT_DURATION)
     {
-        boolean Mistyped = false;
+        
         if (theTypist.isBurntOut())
         {
             // Recovering from burnout — skip this turn
@@ -147,14 +148,14 @@ public class TypingRace
         if (Math.random() < theTypist.getAccuracy())
         {
             theTypist.typeCharacter();
-            Mistyped = false;
+            
         }
 
         // Mistype check — the probability should reflect the typist's accuracy
         if (Math.random() < theTypist.getAccuracy() * MISTYPE_BASE_CHANCE)
         {
             theTypist.slideBack(SLIDE_BACK_AMOUNT);
-            Mistyped = true;
+            
         }
 
         // Burnout check — pushing too hard increases burnout risk
@@ -173,8 +174,7 @@ public class TypingRace
      */
     private boolean raceFinishedBy(Typist theTypist)
     {
-        // Ty was confident this condition was correct
-        if (theTypist.getProgress() == passageLength)
+        if (theTypist.getProgress() >= passageLength)
         {
             return true;
         }
@@ -189,7 +189,7 @@ public class TypingRace
      * Shows each typist's position along the passage, burnout state,
      * and a WPM estimate based on current progress.
      */
-    private void printRace(int passageLength, boolean Mistyped)
+    private void printRace(int passageLength, long startNanos)
     {
         System.out.print('\u000C'); // Clear terminal
 
@@ -197,25 +197,13 @@ public class TypingRace
         multiplePrint('=', passageLength + 3);
         System.out.println();
 
-        if (seat1Typist.isBurntOut() == true)
-        {
-            System.out.print("zz");
-        }
-        printSeat(seat1Typist, Mistyped);
+        printSeat(seat1Typist, startNanos);
         System.out.println();
 
-        if (seat2Typist.isBurntOut() == true)
-        {
-            System.out.print("zz");
-        }
-        printSeat(seat2Typist, Mistyped);
+        printSeat(seat2Typist, startNanos);
         System.out.println();
 
-        if (seat3Typist.isBurntOut() == true)
-        {
-            System.out.print("zz");
-        }
-        printSeat(seat3Typist, Mistyped);
+        printSeat(seat3Typist, startNanos);
         System.out.println();
 
         multiplePrint('=', passageLength + 3);
@@ -235,10 +223,11 @@ public class TypingRace
      *
      * @param theTypist the typist whose lane to print
      */
-    private void printSeat(Typist theTypist, boolean Mistyped)
+    private void printSeat(Typist theTypist, long startNanos)
     {
         int spacesBefore = theTypist.getProgress();
         int spacesAfter  = passageLength - theTypist.getProgress();
+
 
         System.out.print('|');
         multiplePrint(' ', spacesBefore);
@@ -248,10 +237,10 @@ public class TypingRace
         System.out.print(theTypist.getSymbol());
         if (theTypist.isBurntOut())
         {
-            System.out.print("zz");
+            System.out.print("~");
             spacesAfter--; // symbol + ~ together take two characters
         }
-        if (Mistyped == true)
+        else if (spacesBefore == spacesBefore - 1)
         {
             System.out.print("<");
             spacesAfter--; // symbol + [<] together take two characters
@@ -266,13 +255,36 @@ public class TypingRace
         {
             System.out.print(theTypist.getName()
                 + " (Accuracy: " + theTypist.getAccuracy() + ")"
-                + " BURNT OUT (" + theTypist.getBurnoutTurnsRemaining() + " turns)");
+                + " BURNT OUT (" + theTypist.getBurnoutTurnsRemaining() + " turns) " + " (WPM: " + getWPM(theTypist, startNanos) + ")") ;
         }
         else
         {
             System.out.print(theTypist.getName()
-                + " (Accuracy: " + theTypist.getAccuracy() + ")");
+                + " (Accuracy: " + theTypist.getAccuracy() + ")" + " (WPM: " + getWPM(theTypist, startNanos) + ")");
         }
+    }
+
+    private int getWPM(Typist theTypist, long startNanos)
+    {
+        int WPM;
+
+        double progress = theTypist.getProgress() / (double) passageLength;
+
+        if (progress == 0.0)
+        {
+            return 0;
+        }
+
+        long elapsedNanos = System.nanoTime() - startNanos;
+        double elapsedSeconds = elapsedNanos / 1_000_000_000.0;
+    
+        double estimatedTotalSeconds = elapsedSeconds / progress;
+        double estimatedMinutes = estimatedTotalSeconds / 60.0;
+
+        WPM =  (int) (passageLength / 5.0 / estimatedMinutes);
+        WPM = (int) Math.round(WPM);
+        return WPM;
+        
     }
 
     /**
@@ -297,7 +309,7 @@ public class TypingRace
     race.addTypist(new Typist('①', "TURBOFINGERS", 0.85), 1);
     race.addTypist(new Typist('②', "QWERTY_QUEEN",  0.60), 2);
     race.addTypist(new Typist('③', "HUNT_N_PECK",   0.30), 3);
-    race.startRace(Mistyped);
+    race.startRace();
     
 }
 }
