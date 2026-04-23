@@ -109,15 +109,48 @@ public class TypingRace
         // TODO (Task 2a): Print the winner's name here
         if (raceFinishedBy(seat1Typist))
         {
-            System.out.println("Winner: " + seat1Typist.getName());
+            double oldAccuracy = seat1Typist.getAccuracy();
+            double newAccuracy = Math.round(seat1Typist.getProgress() / (double) seat1Typist.getTotalCharsTyped() * 100.0) / 100.0;
+            seat1Typist.setAccuracy(newAccuracy);
+            System.out.println("And the winner is... " + seat1Typist.getName() + "!");
+            if (oldAccuracy < newAccuracy)
+            {
+                System.out.println("Final accuracy: " + newAccuracy + " (improved from " + oldAccuracy + ")");
+            }
+            else
+            {
+                System.out.println("Final accuracy: " + newAccuracy + " (worsened from " + oldAccuracy + ")");
+            }       
         }
         else if (raceFinishedBy(seat2Typist))
         {
-            System.out.println("Winner: " + seat2Typist.getName());
+            double oldAccuracy = seat2Typist.getAccuracy();
+            double newAccuracy = Math.round(seat2Typist.getProgress() / (double) seat2Typist.getTotalCharsTyped() * 100.0) / 100.0;
+            seat2Typist.setAccuracy(newAccuracy);
+            System.out.println("And the winner is... " + seat2Typist.getName() + "!");
+            if (oldAccuracy < newAccuracy)
+            {
+                System.out.println("Final accuracy: " + newAccuracy + " (improved from " + oldAccuracy + ")");
+            }
+            else
+            {
+                System.out.println("Final accuracy: " + newAccuracy + " (worsened from " + oldAccuracy + ")");
+            }
         }
         else if (raceFinishedBy(seat3Typist))
         {
-            System.out.println("Winner: " + seat3Typist.getName());
+            double oldAccuracy = seat3Typist.getAccuracy();
+            double newAccuracy = Math.round(seat3Typist.getProgress() / (double) seat3Typist.getTotalCharsTyped() * 100.0) / 100.0;
+            seat3Typist.setAccuracy(newAccuracy);
+            System.out.println("And the winner is... " + seat3Typist.getName() + "!");
+            if (oldAccuracy < newAccuracy)
+            {
+                System.out.println("Final accuracy: " + newAccuracy + " (improved from " + oldAccuracy + ")");
+            }
+            else
+            {
+                System.out.println("Final accuracy: " + newAccuracy + " (worsened from " + oldAccuracy + ")");
+            }
         }
     }
 
@@ -136,6 +169,7 @@ public class TypingRace
      */
     private void advanceTypist(Typist theTypist, int SLIDE_BACK_AMOUNT, int BURNOUT_DURATION)
     {
+        theTypist.resetMistyped(); // Clear mistyped state at the start of the turn
         
         if (theTypist.isBurntOut())
         {
@@ -174,7 +208,8 @@ public class TypingRace
      */
     private boolean raceFinishedBy(Typist theTypist)
     {
-        if (theTypist.getProgress() >= passageLength)
+        // Ty was confident this condition was correct
+        if (theTypist.getProgress() == passageLength)
         {
             return true;
         }
@@ -200,15 +235,18 @@ public class TypingRace
         printSeat(seat1Typist, startNanos);
         System.out.println();
 
+     
         printSeat(seat2Typist, startNanos);
         System.out.println();
 
+    
         printSeat(seat3Typist, startNanos);
         System.out.println();
 
         multiplePrint('=', passageLength + 3);
         System.out.println();
-        System.out.println("  [zz] = burnt out    [<] = just mistyped");
+        System.out.println("  [~] = burnt out    [<] = just mistyped");
+        System.out.println();
     }
 
     /**
@@ -228,7 +266,6 @@ public class TypingRace
         int spacesBefore = theTypist.getProgress();
         int spacesAfter  = passageLength - theTypist.getProgress();
 
-
         System.out.print('|');
         multiplePrint(' ', spacesBefore);
 
@@ -240,10 +277,10 @@ public class TypingRace
             System.out.print("~");
             spacesAfter--; // symbol + ~ together take two characters
         }
-        else if (spacesBefore == spacesBefore - 1)
+        else if (theTypist.justMistyped())
         {
-            System.out.print("<");
-            spacesAfter--; // symbol + [<] together take two characters
+            System.out.print(" [<]");
+            spacesAfter-=4; // symbol + [<] together take two characters
         }
 
         multiplePrint(' ', spacesAfter);
@@ -255,7 +292,13 @@ public class TypingRace
         {
             System.out.print(theTypist.getName()
                 + " (Accuracy: " + theTypist.getAccuracy() + ")"
-                + " BURNT OUT (" + theTypist.getBurnoutTurnsRemaining() + " turns) " + " (WPM: " + getWPM(theTypist, startNanos) + ")") ;
+                 + " BURNT OUT (" + theTypist.getBurnoutTurnsRemaining() + " turns) " + " (WPM: " + getWPM(theTypist, startNanos) + ")");
+        }
+        
+        else if (theTypist.justMistyped())
+        {
+            System.out.print(theTypist.getName()
+                + " (Accuracy: " + theTypist.getAccuracy() + ")" + " <- just mistyped " + " (WPM: " + getWPM(theTypist, startNanos) + ")");
         }
         else
         {
@@ -263,8 +306,7 @@ public class TypingRace
                 + " (Accuracy: " + theTypist.getAccuracy() + ")" + " (WPM: " + getWPM(theTypist, startNanos) + ")");
         }
     }
-
-    private int getWPM(Typist theTypist, long startNanos)
+     private int getWPM(Typist theTypist, long startNanos)
     {
         int WPM;
 
@@ -286,6 +328,8 @@ public class TypingRace
         return WPM;
         
     }
+
+    
 
     /**
      * Prints a character a given number of times.
