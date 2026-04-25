@@ -230,7 +230,6 @@ public class Typist
             else
             {
                 this.typist_progress = 0;
-                System.out.println("Typist slides back to start");
              
             }
         }
@@ -289,15 +288,27 @@ class Main {
 
         /* //'Typist Progress cannot go below 0' tests: Test Case 1
          typer1.resetToStart();
+         System.out.println(typer1.getProgress());
          typer1.slideBack(5);
+         if (typer1.getProgress() == 0) {
+                System.out.println("Progress cannot go below 0: PASSED");
+                System.out.println("Typist slides back to start");
+        }
+        else {
+                System.out.println("Progress cannot go below 0: FAILED");
+         }
          System.out.println(typer1.isBurntOut());
+         System.out.println("Is typist burnt out currently: " + typer1.isBurntOut());
+         System.out.println("Burnout turns remaining: " + typer1.getBurnoutTurnsRemaining());
          */
+         
         
 
-        // 'resetToStart() method clears both progress and burnout state' tests: Test Case 3
-        /* System.out.println("h");;
-        typer1.TYPISTISBURNTOUT = true;
+        /* // 'resetToStart() method clears both progress and burnout state' tests: Test Case 2
+        System.out.println("Is typist burnt out currently: " + typer1.isBurntOut());
         typer1.burnOut(5);
+        System.out.println("Is typist burnt out currently: " + typer1.isBurntOut());
+        System.out.println("Burnout turns remaining: " + typer1.getBurnoutTurnsRemaining());
         for (int i = 0; i <= 10; i++)
         {
             typer1.typeCharacter();
@@ -307,11 +318,17 @@ class Main {
         System.out.println(typer1.getProgress());
 
         typer1.resetToStart();
+        for (int i = 1; i <= 10; i++)
+        {
+            typer1.typeCharacter();
+        }
+
         System.out.println(typer1.getBurnoutTurnsRemaining());
         System.out.println(typer1.getProgress());
         */
+        
 
-       /* // 'Burnout prevents typing' test: Test Case 2
+       /* // 'Burnout prevents typing' test: Test Case 3
         System.out.println("=== BURNOUT TEST ===");
         
         // Start fresh and type some characters
@@ -348,23 +365,26 @@ class Main {
         typer1.typeCharacter();
         typer1.typeCharacter();
         System.out.println("Progress after recovery (should be 4): " + typer1.getProgress());
-     */
+       */
         
                 
 
-       /* // Accuracy range Tests: Test Case 4
-         System.out.println(typer1.getAccuracy());
+        /* // Accuracy range Tests: Test Case 4
+        System.out.println(typer1.getAccuracy());
         typer1.setAccuracy(5.0);
         System.out.println(typer1.getAccuracy());
         typer1.setAccuracy(0.0);
+        System.out.println(typer1.getAccuracy());
+        typer1.setAccuracy(-3.0);
         System.out.println(typer1.getAccuracy());
         typer1.setAccuracy(0.8);
         System.out.println(typer1.getAccuracy());
         typer1.setAccuracy(1.0);
         System.out.println(typer1.getAccuracy());
         */
+        
 
-       /*// Normal forward movement via typeCharacter() : Test Case 4
+        /* // Normal forward movement via typeCharacter() : Test Case 5
 
        typer1.resetToStart();
        System.out.println(typer1.getProgress());
