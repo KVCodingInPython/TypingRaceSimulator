@@ -124,7 +124,7 @@ public class Typist
      */
     public String getName()
     {
-        return this.typist_name;
+        return this.typist_name; // placeholder - replace with correct implementation
     }
 
     /**
@@ -191,7 +191,7 @@ public class Typist
      */
     public boolean isBurntOut()
     {
-        return this.TYPISTISBURNTOUT;
+        return this.TYPISTISBURNTOUT; // placeholder - replace with correct implementation
     }
 
     /**
@@ -364,7 +364,7 @@ class Main {
         System.out.println(typer1.getAccuracy());
         */
 
-       /* // Normal forward movement via typeCharacter() : Test Case 4
+       /*// Normal forward movement via typeCharacter() : Test Case 4
 
        typer1.resetToStart();
        System.out.println(typer1.getProgress());
