@@ -1,4 +1,5 @@
-
+import java.util.List;
+import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 /**
  * A typing race simulation. Three typists race to complete a passage of text,
@@ -19,16 +20,16 @@ public class TypingRace
     private boolean raceFinished;
 
     // Constructor for the GUI version
-    public TypingRace(RaceConfigGUI config, List<TypistConfig> typistConfigs) {
-        this.passage = config.getPassage();
+    public TypingRace(RaceConfigGUI config, List<TypistConfigGUI> typistConfigs) {
+        this.passage = this.getPassage();
         this.passageLength = passage.length();
         this.raceFinished = false;
-        this.typists = new ArrayList<>();
+        this.typists = new ArrayList<Typist>();
 
         // Dynamically builds one seat in the race for each typist provided in race config
-        for (TypistConfig tc : typistConfigs) {
-            Typist t = new Typist(tc);
-            t.applyRaceModifiers(config);
+        for (TypistConfigGUI tc : typistConfigs) {
+            Typist t = new Typist(tc, config);
+            t = null;
             typists.add(t);
         }
     }
@@ -38,7 +39,7 @@ public class TypingRace
             return;
         }
         for (Typist t : typists) {
-            t.advanceTurn(passageLength);
+            t.typeCharacter();
             if (t.getProgress() >= passageLength) {
                 raceFinished = true;
             }
@@ -81,9 +82,6 @@ public class TypingRace
     public TypingRace(int passageLength)
     {
         this.passageLength = passageLength;
-        seat1Typist = null;
-        seat2Typist = null;
-        seat3Typist = null;
     }
 
     /**
@@ -94,21 +92,13 @@ public class TypingRace
      */
     public void addTypist(Typist theTypist, int seatNumber)
     {
-        if (seatNumber == 1)
-        {
-            seat1Typist = theTypist;
-        }
-        else if (seatNumber == 2)
-        {
-            seat2Typist = theTypist;
-        }
-        else if (seatNumber == 3)
-        {
-            seat3Typist = theTypist;
-        }
-        else
-        {
-            System.out.println("Cannot seat typist at seat " + seatNumber + " — there is no such seat.");
+        for (Typist t : typists) {
+            for (int i = 0; i < typists.size(); i++) {
+                if (typists.get(i) == null) {
+                    typists.set(i, theTypist);
+                    return;
+                }
+            }
         }
     }
 
@@ -120,31 +110,43 @@ public class TypingRace
      * Note from Ty: "I didn't bother printing the winner at the end,
      * you can probably figure that out yourself."
      */
-    public void startRace()
+    public void startRace(RaceConfigGUI config)
     {
         long startNanos = System.nanoTime();
         boolean finished = false;
 
         // Reset all typists to the start of the passage
         // (Ty was in a hurry here)
-        seat1Typist.resetToStart();
-        seat2Typist.resetToStart();
-        seat3Typist.resetToStart();
+        for (Typist t : typists) {
+            t.resetToStart();
+        }
 
         while (!finished)
         {
-            // Advance each typist by one turn
-            advanceTypist(seat1Typist, SLIDE_BACK_AMOUNT, BURNOUT_DURATION);
-            advanceTypist(seat2Typist, SLIDE_BACK_AMOUNT, BURNOUT_DURATION);
-            advanceTypist(seat3Typist, SLIDE_BACK_AMOUNT, BURNOUT_DURATION);
+            for (Typist t : typists) {
+                // Advance each typist by one turn
+                advanceTypist(t, SLIDE_BACK_AMOUNT, BURNOUT_DURATION, config);
 
-            // Print the current state of the race
-            printRace(passageLength, startNanos);
+                // Print the current state of the race
+                printRace(passageLength, startNanos);
 
-            // Check if any typist has finished the passage
-            if ( raceFinishedBy(seat1Typist) || raceFinishedBy(seat2Typist) || raceFinishedBy(seat3Typist) )
-            {
-                finished = true;
+                // Check if any typist has finished the passage
+                if ( raceFinishedBy(t) )
+                {
+                    finished = true;
+                    double oldAccuracy = t.getAccuracy();
+                    double newAccuracy = Math.round(t.getProgress() / (double) t.getTotalCharsTyped() * 100.0) / 100.0;
+                    t.setAccuracy(newAccuracy);
+                    System.out.println("And the winner is... " + t.getName() + "!");
+                    if (oldAccuracy < newAccuracy)
+                    {
+                        System.out.println("Final accuracy: " + newAccuracy + " (improved from " + oldAccuracy + ")");
+                    }
+                    else
+                    {
+                        System.out.println("Final accuracy: " + newAccuracy + " (worsened from " + oldAccuracy + ")");
+                    }       
+                }
             }
 
             // Wait 200ms between turns so the animation is visible
@@ -155,51 +157,8 @@ public class TypingRace
 
 
         // TODO (Task 2a): Print the winner's name here
-        if (raceFinishedBy(seat1Typist))
-        {
-            double oldAccuracy = seat1Typist.getAccuracy();
-            double newAccuracy = Math.round(seat1Typist.getProgress() / (double) seat1Typist.getTotalCharsTyped() * 100.0) / 100.0;
-            seat1Typist.setAccuracy(newAccuracy);
-            System.out.println("And the winner is... " + seat1Typist.getName() + "!");
-            if (oldAccuracy < newAccuracy)
-            {
-                System.out.println("Final accuracy: " + newAccuracy + " (improved from " + oldAccuracy + ")");
-            }
-            else
-            {
-                System.out.println("Final accuracy: " + newAccuracy + " (worsened from " + oldAccuracy + ")");
-            }       
-        }
-        else if (raceFinishedBy(seat2Typist))
-        {
-            double oldAccuracy = seat2Typist.getAccuracy();
-            double newAccuracy = Math.round(seat2Typist.getProgress() / (double) seat2Typist.getTotalCharsTyped() * 100.0) / 100.0;
-            seat2Typist.setAccuracy(newAccuracy);
-            System.out.println("And the winner is... " + seat2Typist.getName() + "!");
-            if (oldAccuracy < newAccuracy)
-            {
-                System.out.println("Final accuracy: " + newAccuracy + " (improved from " + oldAccuracy + ")");
-            }
-            else
-            {
-                System.out.println("Final accuracy: " + newAccuracy + " (worsened from " + oldAccuracy + ")");
-            }
-        }
-        else if (raceFinishedBy(seat3Typist))
-        {
-            double oldAccuracy = seat3Typist.getAccuracy();
-            double newAccuracy = Math.round(seat3Typist.getProgress() / (double) seat3Typist.getTotalCharsTyped() * 100.0) / 100.0;
-            seat3Typist.setAccuracy(newAccuracy);
-            System.out.println("And the winner is... " + seat3Typist.getName() + "!");
-            if (oldAccuracy < newAccuracy)
-            {
-                System.out.println("Final accuracy: " + newAccuracy + " (improved from " + oldAccuracy + ")");
-            }
-            else
-            {
-                System.out.println("Final accuracy: " + newAccuracy + " (worsened from " + oldAccuracy + ")");
-            }
-        }
+         
+     
     }
 
     /**
@@ -215,7 +174,7 @@ public class TypingRace
      *
      * @param theTypist the typist to advance
      */
-    private void advanceTypist(Typist theTypist, int SLIDE_BACK_AMOUNT, int BURNOUT_DURATION)
+    private void advanceTypist(Typist theTypist, int SLIDE_BACK_AMOUNT, int BURNOUT_DURATION, RaceConfigGUI config)
     {
         theTypist.resetMistyped(); // Clear mistyped state at the start of the turn
         
@@ -236,7 +195,7 @@ public class TypingRace
         // Mistype check — the probability should reflect the typist's accuracy
         else if (Math.random() < (1-theTypist.getAccuracy()) * MISTYPE_BASE_CHANCE)
         {
-            theTypist.slideBack(SLIDE_BACK_AMOUNT);
+            theTypist.slideBack(SLIDE_BACK_AMOUNT, config);
             
         }
 
@@ -280,16 +239,10 @@ public class TypingRace
         multiplePrint('=', passageLength + 3);
         System.out.println();
 
-        printSeat(seat1Typist, startNanos);
-        System.out.println();
-
-     
-        printSeat(seat2Typist, startNanos);
-        System.out.println();
-
-    
-        printSeat(seat3Typist, startNanos);
-        System.out.println();
+        for (Typist t: typists) {
+            printSeat(t, startNanos);
+            System.out.println();
+        }
 
         multiplePrint('=', passageLength + 3);
         System.out.println();
@@ -401,7 +354,7 @@ public class TypingRace
     race.addTypist(new Typist('①', "TURBOFINGERS", 0.85), 1);
     race.addTypist(new Typist('②', "QWERTY_QUEEN",  0.60), 2);
     race.addTypist(new Typist('③', "HUNT_N_PECK",   0.30), 3);
-    race.startRace();
+    race.startRace(new RaceConfigGUI());
     
 }
 }
