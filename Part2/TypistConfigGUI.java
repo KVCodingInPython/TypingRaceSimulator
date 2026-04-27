@@ -150,56 +150,45 @@ public class TypistConfigGUI extends JPanel {
         return panel;
     }
 
-        private String get_Name() {
+        public String get_Name() {
         return nameField.getText().trim();
     }
 
-    private char getSymbol() {
+    public char getSymbol() {
         return symbolField.getText().trim().charAt(0);
     }
 
-    private Color getCursorColour() {
+    public Color getCursorColour() {
         return chosenCursorColour;
     }
 
-    private Color getProgressBarColour() {
+    public Color getProgressBarColour() {
         return chosenProgressBarColour;
     }
 
-    private int getTypingStyle() {
+    public int getTypingStyle() {
         return typingStyleBox.getSelectedIndex();
     }
 
-    private int getKeyboardType() {
+    public int getKeyboardType() {
         return keyboardTypeBox.getSelectedIndex();
     }
 
-    private boolean isWristSupportEnabled() {
+    public boolean isWristSupportEnabled() {
         return wristSupportBox.isSelected();
     }
 
-    private boolean isEnergyDrinkEnabled() {
+    public boolean isEnergyDrinkEnabled() {
         return energyDrinkBox.isSelected();
     }
 
-    private boolean isHeadphonesEnabled() {
+    public boolean isHeadphonesEnabled() {
         return headphonesBox.isSelected();
     }
 
 }
 
-class Main {
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            TypistConfigGUI config = new TypistConfigGUI();
-            JFrame frame = new JFrame("Typist Configuration");
-            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frame.setSize(400, 300);
-            frame.add(config);
-            frame.setVisible(true);
-        });
-    }
-}
+// Removed local test Main to avoid duplicate main class across files.
 
 
 
