@@ -27,7 +27,55 @@ public class Typist
     private boolean JUSTMISTYPED;
     private int total_characters_typed;
 
+    // GUI-related fields 
+    private java.awt.Color colour; // Colour represents character correctly typed
 
+    // Typing style index 
+    // 0 = Touch Typist, 1 = Hunt & Peck, 2 = Phone Thumbs, 3 = Voice-to-Text
+    private int typing_style;
+
+    // Keyboard type index
+    // 0 = Mechanical, 1 = Membrane, 2 = Touchscreen, 3 = Stenography
+    private int keyboard_type;
+
+    // Accessories
+    private boolean wristSupport;
+    private boolean energyDrink;
+    private boolean headphones;
+
+    // Modifier flags passed in from race configuration panel
+    private boolean autoCorrectEnabled;
+    private boolean caffeineModeEnabled;
+    private boolean nightShiftEnabled;
+
+    // Caffeine mode turn counter
+    private int caffeine_turn_count= 0;
+
+    // Constructor
+    public Typist(TypistConfig config) {
+        this.typist_name = config.getName();
+        this.typist_position = config.getSymbol();
+        this.typist_accuracy = config.getAccuracy();
+        this.typing_style = config.getTypingStyle();
+        this.keyboard_type = config.getKeyboardType();
+        this.wristSupport = config.hasWristSupport();
+        this.energyDrink = config.hasEnergyDrink();
+        this.headphones = config.hasHeadphones();
+        this.autoCorrectEnabled = config.isAutoCorrectEnabled();
+        this.caffeineModeEnabled = config.isCaffeineModeEnabled();
+        this.nightShiftEnabled = config.isNightShiftEnabled();
+
+        // Base stats
+        this.typist_progress = 0;
+        this.TYPISTISBURNTOUT = false;
+        this.burnout_remaining = 0;
+        this.JUSTMISTYPED = false;
+        this.total_characters_typed = 0;
+
+        applyTypingStyle();
+        applyKeyboardType();
+        applyAccessories();
+    }
 
 
     // Constructor of class Typist
