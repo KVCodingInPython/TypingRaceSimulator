@@ -14,9 +14,56 @@ import java.util.concurrent.TimeUnit;
 public class TypingRace
 {
     private int passageLength;   // Total characters in the passage to type
-    private Typist seat1Typist;
-    private Typist seat2Typist;
-    private Typist seat3Typist;
+    private List<Typist> typists;
+    private String passage;
+    private boolean raceFinished;
+
+    // Constructor for the GUI version
+    public TypingRace(RaceConfigGUI config, List<TypistConfig> typistConfigs) {
+        this.passage = config.getPassage();
+        this.passageLength = passage.length();
+        this.raceFinished = false;
+        this.typists = new ArrayList<>();
+
+        // Dynamically builds one seat in the race for each typist provided in race config
+        for (TypistConfig tc : typistConfigs) {
+            Typist t = new Typist(tc);
+            t.applyRaceModifiers(config);
+            typists.add(t);
+        }
+    }
+
+    public void advanceTurn()  {
+        if (raceFinished) {
+            return;
+        }
+        for (Typist t : typists) {
+            t.advanceTurn(passageLength);
+            if (t.getProgress() >= passageLength) {
+                raceFinished = true;
+            }
+        }
+    }
+    
+    public List<Typist> getTypists() {
+        return typists;
+    }
+
+    public String getPassage() {
+        return passage;
+    }
+
+    public int getPassageLength() {
+        return passageLength;
+    }
+
+    public boolean isRaceFinished() {
+        return raceFinished;
+    }
+
+
+
+
 
     // Accuracy thresholds for mistype and burnout events
     // (Ty tuned these values "by feel". They may need adjustment.)
