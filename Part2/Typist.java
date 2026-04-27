@@ -28,7 +28,7 @@ public class Typist
     private int total_characters_typed;
 
     // GUI-related fields 
-    private java.awt.Color colour; // Colour represents character correctly typed
+    private java.awt.Color highlightCharacters; // highlightCharacters represents the colour of characters correctly typed 
 
     // Typing style index 
     // 0 = Touch Typist, 1 = Hunt & Peck, 2 = Phone Thumbs, 3 = Voice-to-Text
@@ -39,9 +39,9 @@ public class Typist
     private int keyboard_type;
 
     // Accessories
-    private boolean wristSupport;
-    private boolean energyDrink;
-    private boolean headphones;
+    private boolean hasWristSupport;
+    private boolean hasEnergyDrink;
+    private boolean hasHeadphones;
 
     // Modifier flags passed in from race configuration panel
     private boolean autoCorrectEnabled;
@@ -52,18 +52,19 @@ public class Typist
     private int caffeine_turn_count= 0;
 
     // Constructor
-    public Typist(TypistConfig config) {
+    public Typist(TypistConfigGUI config, RaceConfigGUI raceConfig) {
         this.typist_name = config.getName();
         this.typist_position = config.getSymbol();
-        this.typist_accuracy = config.getAccuracy();
+        this.highlightCharacters = config.getCursorColour();
+        this.typist_accuracy = this.getAccuracy();
         this.typing_style = config.getTypingStyle();
         this.keyboard_type = config.getKeyboardType();
-        this.wristSupport = config.hasWristSupport();
-        this.energyDrink = config.hasEnergyDrink();
-        this.headphones = config.hasHeadphones();
-        this.autoCorrectEnabled = config.isAutoCorrectEnabled();
-        this.caffeineModeEnabled = config.isCaffeineModeEnabled();
-        this.nightShiftEnabled = config.isNightShiftEnabled();
+        this.hasWristSupport = config.isWristSupportEnabled();
+        this.hasEnergyDrink = config.isEnergyDrinkEnabled();
+        this.hasHeadphones = config.isHeadphonesEnabled();
+        this.autoCorrectEnabled = raceConfig.isAutoCorrectEnabled();
+        this.caffeineModeEnabled = raceConfig.isCaffeineModeEnabled();
+        this.nightShiftEnabled = raceConfig.isNightShiftEnabled();
 
         // Base stats
         this.typist_progress = 0;
@@ -72,9 +73,6 @@ public class Typist
         this.JUSTMISTYPED = false;
         this.total_characters_typed = 0;
 
-        applyTypingStyle();
-        applyKeyboardType();
-        applyAccessories();
     }
 
 
@@ -265,9 +263,13 @@ public class Typist
      *
      * @param amount the number of characters to slide back (must be positive)
      */
-    public void slideBack(int amount)
+    public void slideBack(int amount, RaceConfigGUI raceConfig)
     {
         this.JUSTMISTYPED = true;
+        if (raceConfig.isAutoCorrectEnabled() == true) {
+            amount = (int) Math.ceil(amount / 2.0);
+        }
+
         if (amount > 0)
         {
             if ((this.typist_progress - amount) >= 0)
