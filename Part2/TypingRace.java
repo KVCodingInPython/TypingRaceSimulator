@@ -18,6 +18,11 @@ public class TypingRace
     private List<Typist> typists;
     private String passage;
     private boolean raceFinished;
+    // Modifier selection components
+    private int turnCount = 0;
+    private boolean autoCorrectEnabled;
+    private boolean caffeineModeEnabled;
+    private boolean nightShiftEnabled;
 
     // Constructor for the GUI version
     public TypingRace(RaceConfigGUI config, List<TypistConfigGUI> typistConfigs) {
@@ -25,11 +30,13 @@ public class TypingRace
         this.passageLength = passage.length();
         this.raceFinished = false;
         this.typists = new ArrayList<Typist>();
+        this.autoCorrectEnabled = config.isAutoCorrectEnabled();
+        this.caffeineModeEnabled = config.isCaffeineModeEnabled();
+        this.nightShiftEnabled = config.isNightShiftEnabled();
 
         // Dynamically builds one seat in the race for each typist provided in race config
         for (TypistConfigGUI tc : typistConfigs) {
             Typist t = new Typist(tc, config);
-            t = null;
             typists.add(t);
         }
     }
@@ -38,8 +45,13 @@ public class TypingRace
         if (raceFinished) {
             return;
         }
+        turnCount++;
         for (Typist t : typists) {
             t.typeCharacter();
+
+            if (turnCount <= 10 && this.caffeineModeEnabled == true) {
+                t.typeCharacter();  
+            }
             if (t.getProgress() >= passageLength) {
                 raceFinished = true;
             }
@@ -193,18 +205,68 @@ public class TypingRace
         }
 
         // Mistype check — the probability should reflect the typist's accuracy
-        else if (Math.random() < (1-theTypist.getAccuracy()) * MISTYPE_BASE_CHANCE)
+        double mistypeChance = MISTYPE_BASE_CHANCE * (1 - theTypist.getAccuracy());
+        if (this.nightShiftEnabled == true) {
+            mistypeChance *= 1.2; // 20% higher chance of mistyping under night shift
+        }
+
+        // Keyboard type modifiers to mistype chance
+        if (theTypist.getHeadphones()) {
+            mistypeChance = mistypeChance - (mistypeChance * 0.1); // Headphones reduce mistype chance by 10% ( +0.1x accuracy)
+        }
+
+        else if (theTypist.getKeyboardType() == 0) { // Mechanical
+            mistypeChance = mistypeChance - (mistypeChance * 0.2); // -0.2x mistype chance ( +0.2x accuracy)
+        }
+        else if (theTypist.getKeyboardType() == 2) { // Touchscreen
+            mistypeChance = mistypeChance + (mistypeChance * 1.8); // +1.8x mistype chance ( -1.8x accuracy)
+        }
+        else if (theTypist.getKeyboardType() == 3) { // Stenography
+            mistypeChance = mistypeChance - (mistypeChance * 0.4); // -0.4x mistype chance ( +0.4x accuracy)
+        }
+        if (Math.random() < mistypeChance)
         {
+            // Auto-correct reduces slide back by half
+            if (this.autoCorrectEnabled == true) {
+                SLIDE_BACK_AMOUNT = (int) Math.floor(SLIDE_BACK_AMOUNT / 2);
+                theTypist.slideBack(SLIDE_BACK_AMOUNT, config);
+            }
             theTypist.slideBack(SLIDE_BACK_AMOUNT, config);
             
         }
 
         // Burnout check — pushing too hard increases burnout risk
         // (probability scales with accuracy squared, capped at ~0.05)
-        else if (Math.random() < 0.05 * theTypist.getAccuracy() * theTypist.getAccuracy())
-        {
-            theTypist.burnOut(BURNOUT_DURATION);
-        }
+            else
+            {
+                double burnoutProb = 0.05 * theTypist.getAccuracy() * theTypist.getAccuracy();
+
+                // If caffeine mode is enabled in the race config, increase burnout risk
+                if (this.caffeineModeEnabled == true) {
+                    burnoutProb *= 1.5; // 50% higher risk under caffeine
+                }
+
+                // Typing style modifiers to burnout risk
+                if (theTypist.getTypingStyle() == 0) { // Touch Typist
+                    burnoutProb = burnoutProb - (burnoutProb * 0.2); // -0.2x burnout risk
+        
+                } else if (theTypist.getTypingStyle() == 1) { // Hunt & Peck
+                    burnoutProb = burnoutProb + (burnoutProb * 0.1); // +0.1x burnout risk
+                    
+                } else if (theTypist.getTypingStyle() == 2) { // Phone Thumbs
+                    burnoutProb = burnoutProb + (burnoutProb * 0.3); // +0.3x burnout risk
+
+                } else if (theTypist.getTypingStyle() == 3) { // Voice-to-Text
+                    burnoutProb = burnoutProb + (burnoutProb * 0.25); // +0.25x burnout risk
+                }
+                if (Math.random() < burnoutProb)
+                {
+                    if (theTypist.getWristSupport()) {
+                        BURNOUT_DURATION = (int) Math.floor(BURNOUT_DURATION * 0.75); // Wrist support reduces burnout duration by 25%, rounds down to int
+                    }
+                    theTypist.burnOut(BURNOUT_DURATION);
+                }
+            }
     }
 
     /**
