@@ -29,6 +29,10 @@ public class Typist
 
     // GUI-related fields 
     private java.awt.Color highlightCharacters; // highlightCharacters represents the colour of characters correctly typed 
+    private java.awt.Color progressBarColour; // progressBarColour represents the colour of the typist's progress bar in the GUI
+    private java.awt.Color cursorColour; // cursorColour represents the colour of the typist's cursor in the GUI
+
+    private double baseAccuracy = 0.5; // Base accuracy for all typists, can be modified by typing style and keyboard type
 
     // Typing style index 
     // 0 = Touch Typist, 1 = Hunt & Peck, 2 = Phone Thumbs, 3 = Voice-to-Text
@@ -43,28 +47,22 @@ public class Typist
     private boolean hasEnergyDrink;
     private boolean hasHeadphones;
 
-    // Modifier flags passed in from race configuration panel
-    private boolean autoCorrectEnabled;
-    private boolean caffeineModeEnabled;
-    private boolean nightShiftEnabled;
-
     // Caffeine mode turn counter
     private int caffeine_turn_count= 0;
+
+
 
     // Constructor
     public Typist(TypistConfigGUI config, RaceConfigGUI raceConfig) {
         this.typist_name = config.getName();
         this.typist_position = config.getSymbol();
         this.highlightCharacters = config.getCursorColour();
-        this.typist_accuracy = this.getAccuracy();
         this.typing_style = config.getTypingStyle();
         this.keyboard_type = config.getKeyboardType();
         this.hasWristSupport = config.isWristSupportEnabled();
         this.hasEnergyDrink = config.isEnergyDrinkEnabled();
         this.hasHeadphones = config.isHeadphonesEnabled();
-        this.autoCorrectEnabled = raceConfig.isAutoCorrectEnabled();
-        this.caffeineModeEnabled = raceConfig.isCaffeineModeEnabled();
-        this.nightShiftEnabled = raceConfig.isNightShiftEnabled();
+
 
         // Base stats
         this.typist_progress = 0;
@@ -73,7 +71,62 @@ public class Typist
         this.JUSTMISTYPED = false;
         this.total_characters_typed = 0;
 
+
+
     }
+
+    public double getAdjustedAccuracy(int turnCount, int passageLength)
+    {
+        double accuracy = baseAccuracy;
+
+        // Typing style modifiers to accuracy
+        switch (typing_style) {
+            case 0: accuracy = accuracy + 0.10; break; // Touch Typist +0.10 accuracy
+            case 1: accuracy = accuracy - 0.05; break; // Hunt & Peck -0.05 accuracy
+            case 2: accuracy = accuracy - 0.10; break; // Phone Thumbs -0.10 accuracy
+            case 3: accuracy = accuracy + 0.05; break; // Voice-to-Text +0.05 accuracy
+        }
+
+        if (hasEnergyDrink) {
+            if (turnCount <= passageLength / 2) { // Energy drink boosts accuracy by 20% for the first half of the passage
+                accuracy = accuracy + (accuracy * 0.20);
+            }
+            else { // After halfway point, energy drink causes a 10% accuracy penalty due to crash
+                accuracy = accuracy - (accuracy * 0.10);
+            }
+        }
+
+        if (accuracy < 0.0) {
+            accuracy = 0.0;
+        }
+        else if (accuracy > 1.0) {
+            accuracy = 1.0;
+        }
+
+        return accuracy;
+    }
+
+    public int getTypingStyle() {
+        return this.typing_style;
+    }
+
+    public int getKeyboardType() {
+        return this.keyboard_type;
+    }
+
+    public boolean getWristSupport() {
+        return this.hasWristSupport;
+    }
+    
+    public boolean getEnergyDrink() {
+        return this.hasEnergyDrink;
+    }
+
+    public boolean getHeadphones() {
+        return this.hasHeadphones;
+    }
+
+    
 
 
     // Constructor of class Typist
@@ -332,6 +385,7 @@ public class Typist
 
 
 }
+/*
 class Main {
     public static void main(String[] args) {
         // Create new Typist object
@@ -436,5 +490,4 @@ class Main {
        */
        
 
-    }
-}
+
