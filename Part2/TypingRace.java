@@ -18,6 +18,7 @@ public class TypingRace
     private List<Typist> typists;
     private String passage;
     private boolean raceFinished;
+    private RaceConfigGUI raceConfig;
     // Modifier selection components
     private int turnCount = 0;
     private boolean autoCorrectEnabled;
@@ -25,14 +26,15 @@ public class TypingRace
     private boolean nightShiftEnabled;
 
     // Constructor for the GUI version
-    public TypingRace(RaceConfigGUI config, List<TypistConfigGUI> typistConfigs) {
-        this.passage = this.getPassage();
+    public TypingRace(RaceConfigGUI config, List<TypistConfigGUI> typistConfigs, String passage) {
+        this.passage = passage;
         this.passageLength = passage.length();
         this.raceFinished = false;
         this.typists = new ArrayList<Typist>();
         this.autoCorrectEnabled = config.isAutoCorrectEnabled();
         this.caffeineModeEnabled = config.isCaffeineModeEnabled();
         this.nightShiftEnabled = config.isNightShiftEnabled();
+        this.raceConfig = config;
 
         // Dynamically builds one seat in the race for each typist provided in race config
         for (TypistConfigGUI tc : typistConfigs) {
@@ -41,21 +43,38 @@ public class TypingRace
         }
     }
 
-    public void advanceTurn()  {
+    /**
+     * Advance the race by a single turn. Returns true if the race finished
+     * as a result of this turn.
+     */
+    public boolean advanceTurn() {
+        if (raceFinished) return true;
+        turnCount++;
+        for (Typist t : typists) {
+            advanceTypist(t, SLIDE_BACK_AMOUNT, BURNOUT_DURATION, this.raceConfig);
+            if (raceFinishedBy(t)) {
+                raceFinished = true;
+            }
+        }
+        return raceFinished;
+    }
+
+    public boolean advanceTurn(RaceConfigGUI config) {
         if (raceFinished) {
-            return;
+            return true;
         }
         turnCount++;
         for (Typist t : typists) {
-            t.typeCharacter();
+            advanceTypist(t, SLIDE_BACK_AMOUNT, BURNOUT_DURATION, config);
 
             if (turnCount <= 10 && this.caffeineModeEnabled == true) {
                 t.typeCharacter();  
             }
-            if (t.getProgress() >= passageLength) {
+            if (raceFinishedBy(t)) {
                 raceFinished = true;
             }
         }
+        return raceFinished;
     }
     
     public List<Typist> getTypists() {
@@ -135,6 +154,8 @@ public class TypingRace
 
         while (!finished)
         {
+            // advance global turn counter (used by caffeine mode etc.)
+            this.turnCount++;
             for (Typist t : typists) {
                 // Advance each typist by one turn
                 advanceTypist(t, SLIDE_BACK_AMOUNT, BURNOUT_DURATION, config);
@@ -147,17 +168,21 @@ public class TypingRace
                 {
                     finished = true;
                     double oldAccuracy = t.getAccuracy();
-                    double newAccuracy = Math.round(t.getProgress() / (double) t.getTotalCharsTyped() * 100.0) / 100.0;
+                    double finalAccuracyPercent = this.calculateFinalAccuracyPercentage(t);
+                    double newAccuracy = finalAccuracyPercent / 100.0;
                     t.setAccuracy(newAccuracy);
                     System.out.println("And the winner is... " + t.getName() + "!");
+                    System.out.println("Final summary: accuracy " + finalAccuracyPercent + "%"
+                        + ", WPM " + getWPM(t, startNanos)
+                        + ", burnout turns " + t.getTotalBurnoutTurns());
                     if (oldAccuracy < newAccuracy)
                     {
-                        System.out.println("Final accuracy: " + newAccuracy + " (improved from " + oldAccuracy + ")");
+                        System.out.println("Final accuracy improved from " + oldAccuracy);
                     }
                     else
                     {
-                        System.out.println("Final accuracy: " + newAccuracy + " (worsened from " + oldAccuracy + ")");
-                    }       
+                        System.out.println("Final accuracy worsened from " + oldAccuracy);
+                    }
                 }
             }
 
@@ -169,6 +194,14 @@ public class TypingRace
 
 
         // TODO (Task 2a): Print the winner's name here
+        // At the end of the simulation, print a summary for every typist
+        System.out.println("\nFinal summaries:");
+        for (Typist t : typists) {
+            double finalAccuracyPercent = this.calculateFinalAccuracyPercentage(t);
+            t.setAccuracy(finalAccuracyPercent / 100.0);
+            int wpm = getWPM(t, startNanos);
+            System.out.println(t.getName() + " — WPM: " + wpm + ", Accuracy: " + finalAccuracyPercent + "%, Burnout turns: " + t.getTotalBurnoutTurns());
+        }
          
      
     }
@@ -229,7 +262,6 @@ public class TypingRace
             // Auto-correct reduces slide back by half
             if (this.autoCorrectEnabled == true) {
                 SLIDE_BACK_AMOUNT = (int) Math.floor(SLIDE_BACK_AMOUNT / 2);
-                theTypist.slideBack(SLIDE_BACK_AMOUNT, config);
             }
             theTypist.slideBack(SLIDE_BACK_AMOUNT, config);
             
@@ -369,13 +401,13 @@ public class TypingRace
                 + " (Accuracy: " + theTypist.getAccuracy() + ")" + " (WPM: " + getWPM(theTypist, startNanos) + ")");
         }
     }
-     private int getWPM(Typist theTypist, long startNanos)
+     public static int calculateWPM(int passageLength, int progress, long startNanos)
     {
         int WPM;
 
-        double progress = theTypist.getProgress() / (double) passageLength;
+        double progressRatio = progress / (double) passageLength;
 
-        if (progress == 0.0)
+        if (progressRatio == 0.0)
         {
             return 0;
         }
@@ -383,13 +415,45 @@ public class TypingRace
         long elapsedNanos = System.nanoTime() - startNanos;
         double elapsedSeconds = elapsedNanos / 1_000_000_000.0;
     
-        double estimatedTotalSeconds = elapsedSeconds / progress;
+        double estimatedTotalSeconds = elapsedSeconds / progressRatio;
         double estimatedMinutes = estimatedTotalSeconds / 60.0;
 
         WPM =  (int) (passageLength / 5.0 / estimatedMinutes);
         WPM = (int) Math.round(WPM);
         return WPM;
         
+    }
+
+    /**
+     * Calculate the final accuracy for a typist based on progress and total
+     * characters typed. Returns a value rounded to two decimal places in the
+     * range [0.0, 1.0]. This is provided as a shared helper for GUI and
+     * simulation code.
+     */
+    public double calculateFinalAccuracy(Typist typist)
+    {
+        return calculateFinalAccuracyPercentage(typist) / 100.0;
+    }
+
+    /**
+     * Final accuracy percentage computed as proportion of the passage
+     * correctly completed (progress / passageLength * 100). Mistypes are
+     * intentionally not counted in this metric per spec.
+     */
+    public double calculateFinalAccuracyPercentage(Typist typist)
+    {
+        if (this.passageLength <= 0) {
+            return Math.round(typist.getAccuracy() * 10000.0) / 100.0;
+        }
+        double accuracyPercent = (typist.getProgress() * 100.0) / this.passageLength;
+        return Math.round(accuracyPercent * 100.0) / 100.0;
+    }
+
+    
+
+     private int getWPM(Typist theTypist, long startNanos)
+    {
+        return calculateWPM(passageLength, theTypist.getProgress(), startNanos);
     }
 
     
