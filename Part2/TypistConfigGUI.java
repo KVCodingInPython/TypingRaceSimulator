@@ -154,6 +154,11 @@ public class TypistConfigGUI extends JPanel {
         return nameField.getText().trim();
     }
 
+    @Override
+    public String getName() {
+        return get_Name();
+    }
+
     public char getSymbol() {
         return symbolField.getText().trim().charAt(0);
     }
