@@ -26,6 +26,7 @@ public class Typist
     private double typist_accuracy;
     private boolean JUSTMISTYPED;
     private int total_characters_typed;
+    private int total_burnout_turns;
 
     // GUI-related fields 
     private java.awt.Color highlightCharacters; // highlightCharacters represents the colour of characters correctly typed 
@@ -62,6 +63,7 @@ public class Typist
         this.hasWristSupport = config.isWristSupportEnabled();
         this.hasEnergyDrink = config.isEnergyDrinkEnabled();
         this.hasHeadphones = config.isHeadphonesEnabled();
+        this.typist_accuracy = baseAccuracy;
 
 
         // Base stats
@@ -70,6 +72,7 @@ public class Typist
         this.burnout_remaining = 0;
         this.JUSTMISTYPED = false;
         this.total_characters_typed = 0;
+        this.total_burnout_turns = 0;
 
 
 
@@ -148,6 +151,7 @@ public class Typist
         this.burnout_remaining = 0;
         this.JUSTMISTYPED = false;
         this.total_characters_typed = 0;
+        this.total_burnout_turns = 0;
     }
 
 
@@ -163,6 +167,7 @@ public class Typist
     {
         this.TYPISTISBURNTOUT = true;
         this.burnout_remaining = turns;
+        this.total_burnout_turns = this.total_burnout_turns + turns;
         
         return;
 
@@ -267,6 +272,12 @@ public class Typist
         return this.total_characters_typed;
     }
 
+
+    public int getTotalBurnoutTurns()
+    {
+        return this.total_burnout_turns;
+    }
+
     /**
      * Resets the typist to their initial state, ready for a new race.
      * Progress returns to zero, burnout is cleared entirely.
@@ -277,6 +288,7 @@ public class Typist
         this.burnout_remaining = 0;
         this.typist_progress = 0;
         this.total_characters_typed = 0;
+        this.total_burnout_turns = 0;
 
         return;
 
