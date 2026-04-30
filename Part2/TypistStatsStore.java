@@ -6,15 +6,19 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 
 public class TypistStatsStore {
     private static final Map<String, TypistCareerStats> STATS_BY_NAME = new LinkedHashMap<>();
+    private static final Set<String> ACTIVE_RACE_PARTICIPANTS = new HashSet<>();
     private static final Path CSV_PATH = Paths.get("typist_stats.csv");
     private static final DateTimeFormatter TS_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+    private static boolean restrictToActiveRace = false;
 
     static {
         // attempt to load persisted stats on class load
@@ -29,13 +33,28 @@ public class TypistStatsStore {
     private TypistStatsStore() {
     }
 
+    public static synchronized void beginRaceSession(List<String> participantNames) {
+        ACTIVE_RACE_PARTICIPANTS.clear();
+        ACTIVE_RACE_PARTICIPANTS.addAll(participantNames);
+        restrictToActiveRace = true;
+    }
+
+    public static synchronized void endRaceSession() {
+        ACTIVE_RACE_PARTICIPANTS.clear();
+        restrictToActiveRace = false;
+    }
+
     public static synchronized void recordRaceResult(String typistName,
                                                      int finishingPosition,
                                                      int wpm,
                                                      double accuracyPercent,
                                                      int burnoutTurns,
                                                      int burnoutEvents,
-                                                     int points) {
+                                                     int points,
+                                                     int earnings) {
+        if (restrictToActiveRace && !ACTIVE_RACE_PARTICIPANTS.contains(typistName)) {
+            return;
+        }
         TypistCareerStats stats = STATS_BY_NAME.computeIfAbsent(typistName, k -> new TypistCareerStats());
         stats.addRecord(new RaceRecord(LocalDateTime.now(),
                                        finishingPosition,
@@ -43,7 +62,8 @@ public class TypistStatsStore {
                                        accuracyPercent,
                                        burnoutTurns,
                                        burnoutEvents,
-                                       points));
+                                       points,
+                                       earnings));
         try {
             saveToCsv();
         } catch (Exception e) {
@@ -105,14 +125,14 @@ public class TypistStatsStore {
     private static synchronized void saveToCsv() throws Exception {
         List<String> lines = new ArrayList<>();
         // header
-        lines.add("typistName,timestamp,finishingPosition,wpm,accuracyPercent,burnoutTurns,burnoutEvents,points");
+        lines.add("typistName,timestamp,finishingPosition,wpm,accuracyPercent,burnoutTurns,burnoutEvents,points,earnings");
 
         for (Map.Entry<String, TypistCareerStats> entry : STATS_BY_NAME.entrySet()) {
             String name = entry.getKey();
             TypistCareerStats stats = entry.getValue();
             for (RaceRecord r : stats.getRaceHistory()) {
                 String ln = String.format(
-                    "%s,%s,%d,%d,%.4f,%d,%d,%d",
+                    "%s,%s,%d,%d,%.4f,%d,%d,%d,%d",
                     escapeCsv(name),
                     r.getTimestamp().format(TS_FORMAT),
                     r.getFinishingPosition(),
@@ -120,7 +140,8 @@ public class TypistStatsStore {
                     r.getAccuracyPercent(),
                     r.getBurnoutTurns(),
                     r.getBurnoutEvents(),
-                    r.getPoints());
+                    r.getPoints(),
+                    r.getEarnings());
                 lines.add(ln);
             }
         }
@@ -136,7 +157,7 @@ public class TypistStatsStore {
                 try {
                     // simple CSV parse (name may contain commas escaped as double quotes)
                     List<String> parts = parseCsvLine(line);
-                    if (parts.size() < 7) return;
+                    if (parts.size() < 8) return;
                     String name = unescapeCsv(parts.get(0));
                     LocalDateTime ts = LocalDateTime.parse(parts.get(1), TS_FORMAT);
                     int finishingPosition = Integer.parseInt(parts.get(2));
@@ -147,9 +168,12 @@ public class TypistStatsStore {
                     int points = parts.size() >= 8
                         ? Integer.parseInt(parts.get(7))
                         : TypingRace.computeRacePoints(finishingPosition, wpm, burnoutEvents);
+                    int earnings = parts.size() >= 9
+                        ? Integer.parseInt(parts.get(8))
+                        : TypingRace.calculateEarnings(finishingPosition, wpm, burnoutEvents);
 
                     TypistCareerStats stats = STATS_BY_NAME.computeIfAbsent(name, k -> new TypistCareerStats());
-                    stats.addRecord(new RaceRecord(ts, finishingPosition, wpm, accuracyPercent, burnoutTurns, burnoutEvents, points));
+                    stats.addRecord(new RaceRecord(ts, finishingPosition, wpm, accuracyPercent, burnoutTurns, burnoutEvents, points, earnings));
                 } catch (NumberFormatException | java.time.format.DateTimeParseException ex) {
                     System.err.println("Skipping malformed CSV row: " + line + " (" + ex.getMessage() + ")");
                 }
