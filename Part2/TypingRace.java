@@ -247,15 +247,20 @@ public class TypingRace
         if (theTypist.getHeadphones()) {
             mistypeChance = mistypeChance - (mistypeChance * 0.1); // Headphones reduce mistype chance by 10% ( +0.1x accuracy)
         }
+        if (theTypist.hasBetterKeyboardUpgrade()) {
+            mistypeChance = mistypeChance - (mistypeChance * 0.25); // Better keyboard reduces mistype chance by 25%
+        }
 
-        else if (theTypist.getKeyboardType() == 0) { // Mechanical
-            mistypeChance = mistypeChance - (mistypeChance * 0.2); // -0.2x mistype chance ( +0.2x accuracy)
-        }
-        else if (theTypist.getKeyboardType() == 2) { // Touchscreen
-            mistypeChance = mistypeChance + (mistypeChance * 1.8); // +1.8x mistype chance ( -1.8x accuracy)
-        }
-        else if (theTypist.getKeyboardType() == 3) { // Stenography
-            mistypeChance = mistypeChance - (mistypeChance * 0.4); // -0.4x mistype chance ( +0.4x accuracy)
+        if (!theTypist.getHeadphones()) {
+            if (theTypist.getKeyboardType() == 0) { // Mechanical
+                mistypeChance = mistypeChance - (mistypeChance * 0.2); // -0.2x mistype chance ( +0.2x accuracy)
+            }
+            else if (theTypist.getKeyboardType() == 2) { // Touchscreen
+                mistypeChance = mistypeChance + (mistypeChance * 1.8); // +1.8x mistype chance ( -1.8x accuracy)
+            }
+            else if (theTypist.getKeyboardType() == 3) { // Stenography
+                mistypeChance = mistypeChance - (mistypeChance * 0.4); // -0.4x mistype chance ( +0.4x accuracy)
+            }
         }
         if (Math.random() < mistypeChance)
         {
