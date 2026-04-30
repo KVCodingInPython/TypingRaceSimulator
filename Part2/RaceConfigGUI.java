@@ -1,6 +1,8 @@
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import javax.swing.*;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.SimpleAttributeSet;
@@ -29,6 +31,8 @@ public class RaceConfigGUI extends JPanel {
 
     // Start Race button
     private JButton startRace;
+    private JButton historyButton;
+    private JButton compareButton;
 
     public RaceConfigGUI() {
         setLayout(new BorderLayout());
@@ -189,11 +193,19 @@ private void refreshTypistTabs() {
 
     // Start Button Bar
     private JPanel buildStartBar() {
+        historyButton = new JButton("Historical Data");
+        historyButton.addActionListener(e -> showHistoricalDataDialog());
+
+        compareButton = new JButton("Compare Typists");
+        compareButton.addActionListener(e -> showComparisonDialog(TypistStatsStore.getKnownTypistNames()));
+
         startRace = new JButton("Start Race ->");
         startRace.setFont(new Font("Arial", Font.BOLD, 14));
         startRace.addActionListener(e -> handleStart());
 
         JPanel bar = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        bar.add(historyButton);
+        bar.add(compareButton);
         bar.add(startRace);
         return bar;
     
@@ -285,6 +297,10 @@ private void refreshTypistTabs() {
 
         // Build the model-driven race and use it to advance turns from the GUI
         TypingRace race = new TypingRace(this, typistConfigs, passage);
+        Map<String, Double> preRaceAccuracy = new HashMap<>();
+        for (Typist t : race.getTypists()) {
+            preRaceAccuracy.put(t.getName(), t.getAccuracy());
+        }
         final long startNanos = System.nanoTime();
         final boolean[] raceOver = {false};
 
@@ -308,32 +324,262 @@ private void refreshTypistTabs() {
             if (finished) {
                 raceOver[0] = true;
                 ((Timer) e.getSource()).stop();
-                // determine winner
-                Typist winner = ts.stream().filter(x -> x.getProgress() >= passage.length()).findFirst().orElse(ts.get(0));
+                List<Typist> ranked = new ArrayList<>(ts);
+                ranked.sort((a, b) -> {
+                    int progressCmp = Integer.compare(b.getProgress(), a.getProgress());
+                    if (progressCmp != 0) {
+                        return progressCmp;
+                    }
+                    int wpmA = TypingRace.calculateWPM(passage.length(), a.getProgress(), startNanos);
+                    int wpmB = TypingRace.calculateWPM(passage.length(), b.getProgress(), startNanos);
+                    return Integer.compare(wpmB, wpmA);
+                });
 
-                // Build summary for all typists (local, reused previous behavior)
+                Map<Typist, Integer> finishingPositions = new HashMap<>();
+                for (int i = 0; i < ranked.size(); i++) {
+                    finishingPositions.put(ranked.get(i), i + 1);
+                }
+
+                Typist winner = ranked.get(0);
                 StringBuilder summary = new StringBuilder();
                 summary.append("And the winner is... ").append(winner.getName()).append("!\n\n");
+                summary.append("Race Results\n");
                 for (Typist t : ts) {
+                    int position = finishingPositions.getOrDefault(t, ranked.size());
+                    double oldAccuracyPercent = preRaceAccuracy.getOrDefault(t.getName(), t.getAccuracy()) * 100.0;
                     double finalAccuracyPercent = race.calculateFinalAccuracyPercentage(t);
                     t.setAccuracy(finalAccuracyPercent / 100.0);
                     int finalWpm = TypingRace.calculateWPM(passage.length(), t.getProgress(), startNanos);
+                    double accuracyDelta = finalAccuracyPercent - oldAccuracyPercent;
+
+                    TypistStatsStore.recordRaceResult(
+                        t.getName(),
+                        position,
+                        finalWpm,
+                        finalAccuracyPercent,
+                        t.getTotalBurnoutTurns(),
+                        t.getBurnoutEventCount());
+
+                    TypistCareerStats career = TypistStatsStore.getStats(t.getName());
+                    int personalBest = career == null ? finalWpm : career.getPersonalBestWpm();
+
                     summary.append(t.getName())
+                        .append(" — Position: ").append(position)
                         .append(" — WPM: ").append(finalWpm)
                         .append(", Accuracy: ").append(finalAccuracyPercent).append("%")
+                        .append(" (\u0394 ").append(String.format("%+.2f", accuracyDelta)).append("%)")
                         .append(", Burnout turns: ").append(t.getTotalBurnoutTurns())
+                        .append(", Burnout events: ").append(t.getBurnoutEventCount())
+                        .append(", Personal Best WPM: ").append(personalBest)
                         .append("\n");
-                    System.out.println(t.getName() + " — WPM: " + finalWpm + ", Accuracy: " + finalAccuracyPercent + "%, Burnout turns: " + t.getTotalBurnoutTurns());
                 }
+
+                summary.append("\nTip: Use 'Historical Data' and 'Compare Typists' for trends and side-by-side metrics.");
 
                 JOptionPane.showMessageDialog(this,
                     summary.toString(),
                     "Race Finished",
                     JOptionPane.INFORMATION_MESSAGE);
-                return;
+
+                showHistoricalDataDialog();
             }
         });
         timer.start();
+    }
+
+    private void showHistoricalDataDialog() {
+        Map<String, TypistCareerStats> statsByName = TypistStatsStore.getAllStats();
+        if (statsByName.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                "No race history yet. Run at least one race first.",
+                "Historical Data",
+                JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        StringBuilder report = new StringBuilder();
+        report.append("Historical Data\n\n");
+
+        for (Map.Entry<String, TypistCareerStats> entry : statsByName.entrySet()) {
+            String name = entry.getKey();
+            TypistCareerStats stats = entry.getValue();
+            List<RaceRecord> history = stats.getRaceHistory();
+
+            report.append(name)
+                .append("\n")
+                .append("  Races: ").append(stats.getRaceCount())
+                .append(" | PB WPM: ").append(stats.getPersonalBestWpm())
+                .append(" | Avg WPM: ").append(String.format("%.1f", stats.getAverageWpm()))
+                .append(" | Avg Accuracy: ").append(String.format("%.2f", stats.getAverageAccuracyPercent())).append("%")
+                .append(" | Avg Position: ").append(String.format("%.2f", stats.getAveragePosition()))
+                .append(" | Total Burnout Events: ").append(stats.getTotalBurnoutEvents())
+                .append("\n");
+
+            report.append("  WPM Trend: ").append(buildTrend(history, "WPM")).append("\n");
+            report.append("  Accuracy Trend: ").append(buildTrend(history, "Accuracy")).append("\n");
+            report.append("  Position Trend: ").append(buildTrend(history, "Position")).append("\n");
+
+            report.append("  Race Log:\n");
+            for (int i = 0; i < history.size(); i++) {
+                RaceRecord r = history.get(i);
+                report.append("    #").append(i + 1)
+                    .append(" Pos ").append(r.getFinishingPosition())
+                    .append(" | WPM ").append(r.getWpm())
+                    .append(" | Acc ").append(String.format("%.2f", r.getAccuracyPercent())).append("%")
+                    .append(" | Burnout Turns ").append(r.getBurnoutTurns())
+                    .append(" | Burnout Events ").append(r.getBurnoutEvents())
+                    .append("\n");
+            }
+            report.append("\n");
+        }
+
+        JTextArea area = new JTextArea(report.toString(), 26, 100);
+        area.setEditable(false);
+        area.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        area.setCaretPosition(0);
+        JScrollPane scroll = new JScrollPane(area);
+
+        JOptionPane.showMessageDialog(this,
+            scroll,
+            "Historical Data",
+            JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void showComparisonDialog(List<String> candidateNames) {
+        if (candidateNames == null || candidateNames.size() < 2) {
+            JOptionPane.showMessageDialog(this,
+                "Need at least two typists with recorded history to compare.",
+                "Comparison View",
+                JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        JPanel listPanel = new JPanel();
+        listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
+        java.util.List<JCheckBox> checkBoxes = new java.util.ArrayList<>();
+        for (String n : candidateNames) {
+            JCheckBox cb = new JCheckBox(n);
+            checkBoxes.add(cb);
+            listPanel.add(cb);
+        }
+
+        JButton selectAllButton = new JButton("Select All");
+        selectAllButton.addActionListener(e -> checkBoxes.forEach(cb -> cb.setSelected(true)));
+
+        JButton clearButton = new JButton("Clear");
+        clearButton.addActionListener(e -> checkBoxes.forEach(cb -> cb.setSelected(false)));
+
+        JComboBox<String> metricBox = new JComboBox<>(new String[] {
+            "WPM", "Accuracy", "Finishing Position", "Burnout Events"
+        });
+
+        JPanel panel = new JPanel(new BorderLayout(8, 8));
+        panel.add(new JLabel("Select 2 or more typists and a metric (check boxes):"), BorderLayout.NORTH);
+        panel.add(new JScrollPane(listPanel), BorderLayout.CENTER);
+
+        JPanel metricPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        metricPanel.add(new JLabel("Metric:"));
+        metricPanel.add(metricBox);
+        metricPanel.add(selectAllButton);
+        metricPanel.add(clearButton);
+        panel.add(metricPanel, BorderLayout.SOUTH);
+
+        int result = JOptionPane.showConfirmDialog(this,
+            panel,
+            "Comparison View",
+            JOptionPane.OK_CANCEL_OPTION,
+            JOptionPane.PLAIN_MESSAGE);
+
+        if (result != JOptionPane.OK_OPTION) {
+            return;
+        }
+
+        List<String> selected = new ArrayList<>();
+        for (JCheckBox cb : checkBoxes) {
+            if (cb.isSelected()) selected.add(cb.getText());
+        }
+        if (selected.size() < 2) {
+            JOptionPane.showMessageDialog(this,
+                "Please select at least two typists.",
+                "Comparison View",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String metric = (String) metricBox.getSelectedItem();
+        StringBuilder comparison = new StringBuilder();
+        comparison.append("Comparison Metric: ").append(metric).append("\n\n");
+
+        String bestName = "";
+        double bestValue = Double.NEGATIVE_INFINITY;
+
+        for (String name : selected) {
+            TypistCareerStats stats = TypistStatsStore.getStats(name);
+            if (stats == null || stats.getRaceCount() == 0) {
+                comparison.append(name).append(" — no race history\n");
+                continue;
+            }
+
+            double value;
+            String valueLabel;
+            if ("WPM".equals(metric)) {
+                value = stats.getAverageWpm();
+                valueLabel = String.format("Avg WPM %.2f", value);
+            } else if ("Accuracy".equals(metric)) {
+                value = stats.getAverageAccuracyPercent();
+                valueLabel = String.format("Avg Accuracy %.2f%%", value);
+            } else if ("Finishing Position".equals(metric)) {
+                value = -stats.getAveragePosition();
+                valueLabel = String.format("Avg Position %.2f", -value);
+            } else {
+                value = -stats.getTotalBurnoutEvents();
+                valueLabel = String.format("Total Burnout Events %d", (int) -value);
+            }
+
+            comparison.append(name)
+                .append(" — ")
+                .append(valueLabel)
+                .append(" | PB WPM ").append(stats.getPersonalBestWpm())
+                .append(" | Races ").append(stats.getRaceCount())
+                .append("\n");
+
+            if (value > bestValue) {
+                bestValue = value;
+                bestName = name;
+            }
+        }
+
+        if (!bestName.isEmpty()) {
+            comparison.append("\nTop performer on selected metric: ").append(bestName);
+        }
+
+        JOptionPane.showMessageDialog(this,
+            comparison.toString(),
+            "Comparison Results",
+            JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private String buildTrend(List<RaceRecord> history, String metric) {
+        if (history.isEmpty()) {
+            return "No data";
+        }
+
+        StringBuilder trend = new StringBuilder();
+        for (int i = 0; i < history.size(); i++) {
+            RaceRecord record = history.get(i);
+            if ("WPM".equals(metric)) {
+                trend.append(record.getWpm());
+            } else if ("Accuracy".equals(metric)) {
+                trend.append(String.format("%.1f", record.getAccuracyPercent())).append("%");
+            } else {
+                trend.append(record.getFinishingPosition());
+            }
+
+            if (i < history.size() - 1) {
+                trend.append(" -> ");
+            }
+        }
+        return trend.toString();
     }
 
     private void updateLaneText(JTextPane pane, String passage, int progress, Color typedColor, Color cursorColor) {
