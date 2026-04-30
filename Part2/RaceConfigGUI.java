@@ -33,6 +33,7 @@ public class RaceConfigGUI extends JPanel {
     private JButton startRace;
     private JButton historyButton;
     private JButton compareButton;
+    private JTextArea leaderboardArea;
 
     public RaceConfigGUI() {
         setLayout(new BorderLayout());
@@ -55,7 +56,8 @@ public class RaceConfigGUI extends JPanel {
         split.setResizeWeight(0.65);
         split.setContinuousLayout(true);
         add(split, BorderLayout.CENTER);
-        add(buildStartBar(), BorderLayout.SOUTH);
+        add(buildBottomPanel(), BorderLayout.SOUTH);
+        updateLeaderboardPanel();
 
 
     }
@@ -188,6 +190,25 @@ private void refreshTypistTabs() {
         panel.add(autoCorrect);
         panel.add(caffeineMode);
         panel.add(nightShift);
+        return panel;
+    }
+
+    private JPanel buildBottomPanel() {
+        JPanel panel = new JPanel(new BorderLayout(8, 8));
+        panel.add(buildLeaderboardPanel(), BorderLayout.CENTER);
+        panel.add(buildStartBar(), BorderLayout.SOUTH);
+        return panel;
+    }
+
+    private JPanel buildLeaderboardPanel() {
+        leaderboardArea = new JTextArea(10, 60);
+        leaderboardArea.setEditable(false);
+        leaderboardArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        leaderboardArea.setText("Leaderboard by Cumulative Points\n\nNo races recorded yet.");
+
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createTitledBorder("Leaderboard"));
+        panel.add(new JScrollPane(leaderboardArea), BorderLayout.CENTER);
         return panel;
     }
 
@@ -351,6 +372,7 @@ private void refreshTypistTabs() {
                     t.setAccuracy(finalAccuracyPercent / 100.0);
                     int finalWpm = TypingRace.calculateWPM(passage.length(), t.getProgress(), startNanos);
                     double accuracyDelta = finalAccuracyPercent - oldAccuracyPercent;
+                    int racePoints = TypingRace.computeRacePoints(position, finalWpm, t.getBurnoutEventCount());
 
                     TypistStatsStore.recordRaceResult(
                         t.getName(),
@@ -358,16 +380,22 @@ private void refreshTypistTabs() {
                         finalWpm,
                         finalAccuracyPercent,
                         t.getTotalBurnoutTurns(),
-                        t.getBurnoutEventCount());
+                        t.getBurnoutEventCount(),
+                        racePoints);
 
                     TypistCareerStats career = TypistStatsStore.getStats(t.getName());
                     int personalBest = career == null ? finalWpm : career.getPersonalBestWpm();
+                    String title = TypistStatsStore.getTitle(t.getName());
+                    List<String> badges = TypistStatsStore.getBadges(t.getName());
 
                     summary.append(t.getName())
                         .append(" — Position: ").append(position)
                         .append(" — WPM: ").append(finalWpm)
                         .append(", Accuracy: ").append(finalAccuracyPercent).append("%")
                         .append(" (\u0394 ").append(String.format("%+.2f", accuracyDelta)).append("%)")
+                        .append(", Race Points: ").append(racePoints)
+                        .append(", Title: ").append(title)
+                        .append(badges.isEmpty() ? "" : " | Badges: " + String.join(", ", badges))
                         .append(", Burnout turns: ").append(t.getTotalBurnoutTurns())
                         .append(", Burnout events: ").append(t.getBurnoutEventCount())
                         .append(", Personal Best WPM: ").append(personalBest)
@@ -382,9 +410,44 @@ private void refreshTypistTabs() {
                     JOptionPane.INFORMATION_MESSAGE);
 
                 showHistoricalDataDialog();
+                updateLeaderboardPanel();
             }
         });
         timer.start();
+    }
+
+    private void updateLeaderboardPanel() {
+        Map<String, TypistCareerStats> statsByName = TypistStatsStore.getAllStats();
+        if (statsByName.isEmpty()) {
+            if (leaderboardArea != null) {
+                leaderboardArea.setText("Leaderboard by Cumulative Points\n\nNo races recorded yet.");
+            }
+            return;
+        }
+
+        List<Map.Entry<String, TypistCareerStats>> ranked = new ArrayList<>(statsByName.entrySet());
+        ranked.sort((left, right) -> Integer.compare(right.getValue().getTotalPoints(), left.getValue().getTotalPoints()));
+
+        StringBuilder leaderboard = new StringBuilder();
+        leaderboard.append("Leaderboard by Cumulative Points\n\n");
+
+        for (int i = 0; i < ranked.size(); i++) {
+            Map.Entry<String, TypistCareerStats> entry = ranked.get(i);
+            TypistCareerStats stats = entry.getValue();
+            leaderboard.append(i + 1)
+                .append(". ")
+                .append(entry.getKey())
+                .append(" - Total Points: ").append(stats.getTotalPoints())
+                .append(" | Races: ").append(stats.getRaceCount())
+                .append(" | PB WPM: ").append(stats.getPersonalBestWpm())
+                .append(" | Title: ").append(stats.getTitle())
+                .append("\n");
+        }
+
+            if (leaderboardArea != null) {
+                leaderboardArea.setText(leaderboard.toString());
+                leaderboardArea.setCaretPosition(0);
+            }
     }
 
     private void showHistoricalDataDialog() {

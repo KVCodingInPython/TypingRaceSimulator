@@ -456,6 +456,36 @@ public class TypingRace
         return calculateWPM(passageLength, theTypist.getProgress(), startNanos);
     }
 
+    public static int computeRacePoints(int position, int wpm, int burnoutEvents) {
+        int points = 0;
+        // Points for finishing position
+        if (position == 1) {
+            points += 3;
+        }
+        else if (position == 2) {
+            points += 2;
+        }
+        else if (position == 3) {
+            points += 1;
+        }
+
+        // Bonus points for WPM thresholds
+        if (wpm >= 20) {
+            points += 3;
+        }
+        else if (wpm >= 15) {
+            points += 2;
+        }
+        else if (wpm >= 10) {
+            points += 1;
+        }
+
+        // Penalty points for burnout events
+        points -= burnoutEvents; // 1 point penalty per burnout event
+        
+        return points;
+    }
+
     
 
     /**

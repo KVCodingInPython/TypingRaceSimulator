@@ -7,19 +7,22 @@ public class RaceRecord {
     private final double accuracyPercent;
     private final int burnoutTurns;
     private final int burnoutEvents;
+    private final int points;
 
     public RaceRecord(LocalDateTime timestamp,
                       int finishingPosition,
                       int wpm,
                       double accuracyPercent,
                       int burnoutTurns,
-                      int burnoutEvents) {
+                      int burnoutEvents,
+                      int points) {
         this.timestamp = timestamp;
         this.finishingPosition = finishingPosition;
         this.wpm = wpm;
         this.accuracyPercent = accuracyPercent;
         this.burnoutTurns = burnoutTurns;
         this.burnoutEvents = burnoutEvents;
+        this.points = points;
     }
 
     public LocalDateTime getTimestamp() {
@@ -44,5 +47,9 @@ public class RaceRecord {
 
     public int getBurnoutEvents() {
         return burnoutEvents;
+    }
+
+    public int getPoints() {
+        return points;
     }
 }
