@@ -482,8 +482,37 @@ public class TypingRace
 
         // Penalty points for burnout events
         points -= burnoutEvents; // 1 point penalty per burnout event
-        
+
         return points;
+    }
+
+    public static int calculateEarnings(int position, int wpm, int burnoutEvents) {
+        int baseEarnings = 0;
+        // Base earnings for finishing positions 
+        if (position == 1) {
+            baseEarnings += 20;
+        }
+        else if (position == 2) {
+            baseEarnings += 10;
+        }
+        else if (position == 3) {
+            baseEarnings += 5;
+        }
+
+        // Bonus earnings for WPM thresholds
+        if (wpm >= 20) {
+            baseEarnings += 20;
+        }
+        else if (wpm >= 15) {
+            baseEarnings += 10;
+        }
+        else if (wpm >= 10) {
+            baseEarnings += 5;
+        }
+
+        // Penalty for burnout events
+        baseEarnings -= burnoutEvents * 5; // £5 penalty per burnout event
+        return Math.max(baseEarnings, 0); // Earnings can't be negative
     }
 
     

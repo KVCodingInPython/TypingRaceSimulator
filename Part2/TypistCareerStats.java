@@ -8,6 +8,7 @@ public class TypistCareerStats {
     private final List<RaceRecord> raceHistory = new ArrayList<>();
     private int personalBestWpm = 0;
     private int totalPoints = 0;
+    private int totalEarnings = 0;
     private int consecutiveWins = 0;
     private int burnoutFreeRaceStreak = 0;
     private final Set<String> badges = new LinkedHashSet<>();
@@ -17,6 +18,7 @@ public class TypistCareerStats {
         raceHistory.add(record);
         personalBestWpm = Math.max(personalBestWpm, record.getWpm());
         totalPoints += record.getPoints();
+        totalEarnings += record.getEarnings();
 
         if (record.getFinishingPosition() == 1) {
             consecutiveWins += 1;
@@ -103,6 +105,10 @@ public class TypistCareerStats {
 
     public int getTotalPoints() {
         return totalPoints;
+    }
+
+    public int getTotalEarnings() {
+        return totalEarnings;
     }
 
     public int getConsecutiveWins() {
