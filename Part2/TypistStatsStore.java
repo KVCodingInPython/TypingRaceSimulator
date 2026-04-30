@@ -34,14 +34,16 @@ public class TypistStatsStore {
                                                      int wpm,
                                                      double accuracyPercent,
                                                      int burnoutTurns,
-                                                     int burnoutEvents) {
+                                                     int burnoutEvents,
+                                                     int points) {
         TypistCareerStats stats = STATS_BY_NAME.computeIfAbsent(typistName, k -> new TypistCareerStats());
         stats.addRecord(new RaceRecord(LocalDateTime.now(),
                                        finishingPosition,
                                        wpm,
                                        accuracyPercent,
                                        burnoutTurns,
-                                       burnoutEvents));
+                                       burnoutEvents,
+                                       points));
         try {
             saveToCsv();
         } catch (Exception e) {
@@ -61,24 +63,64 @@ public class TypistStatsStore {
         return new ArrayList<>(STATS_BY_NAME.keySet());
     }
 
+    public static synchronized double getRankAdjustedStartingAccuracy(String typistName, double baseAccuracy) {
+        TypistCareerStats stats = STATS_BY_NAME.get(typistName);
+        if (stats == null) {
+            return clampAccuracy(baseAccuracy);
+        }
+
+        int rank = getRankForTypist(typistName);
+        double adjustment = getRankAccuracyAdjustment(rank);
+        return clampAccuracy(baseAccuracy + adjustment);
+    }
+
+    public static synchronized String getTitle(String typistName) {
+        TypistCareerStats stats = STATS_BY_NAME.get(typistName);
+        return stats == null ? "Rookie" : stats.getTitle();
+    }
+
+    public static synchronized List<String> getBadges(String typistName) {
+        TypistCareerStats stats = STATS_BY_NAME.get(typistName);
+        return stats == null ? List.of() : stats.getBadges();
+    }
+
+    public static synchronized int getRankForTypist(String typistName) {
+        List<Map.Entry<String, TypistCareerStats>> ranked = new ArrayList<>(STATS_BY_NAME.entrySet());
+        ranked.sort((left, right) -> {
+            int pointsComparison = Integer.compare(right.getValue().getTotalPoints(), left.getValue().getTotalPoints());
+            if (pointsComparison != 0) {
+                return pointsComparison;
+            }
+            return left.getKey().compareToIgnoreCase(right.getKey());
+        });
+
+        for (int i = 0; i < ranked.size(); i++) {
+            if (ranked.get(i).getKey().equals(typistName)) {
+                return i + 1;
+            }
+        }
+        return ranked.size() + 1;
+    }
+
     private static synchronized void saveToCsv() throws Exception {
         List<String> lines = new ArrayList<>();
         // header
-        lines.add("typistName,timestamp,finishingPosition,wpm,accuracyPercent,burnoutTurns,burnoutEvents");
+        lines.add("typistName,timestamp,finishingPosition,wpm,accuracyPercent,burnoutTurns,burnoutEvents,points");
 
         for (Map.Entry<String, TypistCareerStats> entry : STATS_BY_NAME.entrySet()) {
             String name = entry.getKey();
             TypistCareerStats stats = entry.getValue();
             for (RaceRecord r : stats.getRaceHistory()) {
                 String ln = String.format(
-                    "%s,%s,%d,%d,%.4f,%d,%d",
+                    "%s,%s,%d,%d,%.4f,%d,%d,%d",
                     escapeCsv(name),
                     r.getTimestamp().format(TS_FORMAT),
                     r.getFinishingPosition(),
                     r.getWpm(),
                     r.getAccuracyPercent(),
                     r.getBurnoutTurns(),
-                    r.getBurnoutEvents());
+                    r.getBurnoutEvents(),
+                    r.getPoints());
                 lines.add(ln);
             }
         }
@@ -102,10 +144,13 @@ public class TypistStatsStore {
                     double accuracyPercent = Double.parseDouble(parts.get(4));
                     int burnoutTurns = Integer.parseInt(parts.get(5));
                     int burnoutEvents = Integer.parseInt(parts.get(6));
+                    int points = parts.size() >= 8
+                        ? Integer.parseInt(parts.get(7))
+                        : TypingRace.computeRacePoints(finishingPosition, wpm, burnoutEvents);
 
                     TypistCareerStats stats = STATS_BY_NAME.computeIfAbsent(name, k -> new TypistCareerStats());
-                    stats.addRecord(new RaceRecord(ts, finishingPosition, wpm, accuracyPercent, burnoutTurns, burnoutEvents));
-                } catch (Exception ex) {
+                    stats.addRecord(new RaceRecord(ts, finishingPosition, wpm, accuracyPercent, burnoutTurns, burnoutEvents, points));
+                } catch (NumberFormatException | java.time.format.DateTimeParseException ex) {
                     System.err.println("Skipping malformed CSV row: " + line + " (" + ex.getMessage() + ")");
                 }
             });
@@ -157,5 +202,31 @@ public class TypistStatsStore {
         }
         out.add(cur.toString());
         return out;
+    }
+
+    private static double getRankAccuracyAdjustment(int rank) {
+        if (rank <= 1) {
+            return -0.03;
+        }
+        if (rank == 2) {
+            return -0.02;
+        }
+        if (rank == 3) {
+            return -0.01;
+        }
+        if (rank >= 6) {
+            return 0.02;
+        }
+        return 0.01;
+    }
+
+    private static double clampAccuracy(double accuracy) {
+        if (accuracy < 0.0) {
+            return 0.0;
+        }
+        if (accuracy > 1.0) {
+            return 1.0;
+        }
+        return accuracy;
     }
 }
