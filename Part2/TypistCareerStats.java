@@ -111,6 +111,10 @@ public class TypistCareerStats {
         return totalEarnings;
     }
 
+    public void deductEarnings(int amount) {
+        this.totalEarnings = Math.max(0, totalEarnings - amount);
+    }
+
     public int getConsecutiveWins() {
         return consecutiveWins;
     }
@@ -126,4 +130,8 @@ public class TypistCareerStats {
     public List<String> getBadges() {
         return Collections.unmodifiableList(new ArrayList<>(badges));
     }
+
+
+
+
 }
