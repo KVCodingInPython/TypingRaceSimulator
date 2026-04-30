@@ -1,0 +1,48 @@
+import java.time.LocalDateTime;
+
+public class RaceRecord {
+    private final LocalDateTime timestamp;
+    private final int finishingPosition;
+    private final int wpm;
+    private final double accuracyPercent;
+    private final int burnoutTurns;
+    private final int burnoutEvents;
+
+    public RaceRecord(LocalDateTime timestamp,
+                      int finishingPosition,
+                      int wpm,
+                      double accuracyPercent,
+                      int burnoutTurns,
+                      int burnoutEvents) {
+        this.timestamp = timestamp;
+        this.finishingPosition = finishingPosition;
+        this.wpm = wpm;
+        this.accuracyPercent = accuracyPercent;
+        this.burnoutTurns = burnoutTurns;
+        this.burnoutEvents = burnoutEvents;
+    }
+
+    public LocalDateTime getTimestamp() {
+        return timestamp;
+    }
+
+    public int getFinishingPosition() {
+        return finishingPosition;
+    }
+
+    public int getWpm() {
+        return wpm;
+    }
+
+    public double getAccuracyPercent() {
+        return accuracyPercent;
+    }
+
+    public int getBurnoutTurns() {
+        return burnoutTurns;
+    }
+
+    public int getBurnoutEvents() {
+        return burnoutEvents;
+    }
+}
