@@ -48,6 +48,7 @@ public class Typist
     private boolean hasWristSupport;
     private boolean hasEnergyDrink;
     private boolean hasHeadphones;
+    private boolean hasBetterKeyboardUpgrade;
 
     // Caffeine mode turn counter
     private int caffeine_turn_count= 0;
@@ -64,6 +65,7 @@ public class Typist
         this.hasWristSupport = config.isWristSupportEnabled();
         this.hasEnergyDrink = config.isEnergyDrinkEnabled();
         this.hasHeadphones = config.isHeadphonesEnabled();
+        this.hasBetterKeyboardUpgrade = config.hasBetterKeyboardUpgrade();
         this.typist_accuracy = TypistStatsStore.getRankAdjustedStartingAccuracy(this.typist_name, baseAccuracy);
 
 
@@ -129,6 +131,10 @@ public class Typist
 
     public boolean getHeadphones() {
         return this.hasHeadphones;
+    }
+
+    public boolean hasBetterKeyboardUpgrade() {
+        return this.hasBetterKeyboardUpgrade;
     }
 
     
