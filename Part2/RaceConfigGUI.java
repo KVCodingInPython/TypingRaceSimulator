@@ -266,6 +266,7 @@ private void refreshTypistTabs() {
             return;
         }
 
+
         List<Typist> typists = new ArrayList<>();
         List<JTextPane> passagePanes = new ArrayList<>();
         List<JProgressBar> progressBars = new ArrayList<>();
@@ -385,7 +386,9 @@ private void refreshTypistTabs() {
                 StringBuilder summary = new StringBuilder();
                 summary.append("And the winner is... ").append(winner.getName()).append("!\n\n");
                 summary.append("Race Results\n");
-                for (Typist t : ts) {
+                for (int i = 0; i < ts.size(); i++) {
+                    Typist t = ts.get(i);
+                    TypistConfigGUI cfg = typistConfigs.get(i);
                     int position = finishingPositions.getOrDefault(t, ranked.size());
                     double oldAccuracyPercent = preRaceAccuracy.getOrDefault(t.getName(), t.getAccuracy()) * 100.0;
                     double finalAccuracyPercent = race.calculateFinalAccuracyPercentage(t);
@@ -393,7 +396,12 @@ private void refreshTypistTabs() {
                     int finalWpm = TypingRace.calculateWPM(passage.length(), t.getProgress(), startNanos);
                     double accuracyDelta = finalAccuracyPercent - oldAccuracyPercent;
                     int racePoints = TypingRace.computeRacePoints(position, finalWpm, t.getBurnoutEventCount());
-                    int earnings = TypingRace.calculateEarnings(position, finalWpm, t.getBurnoutEventCount());
+                    int baseEarnings = TypingRace.calculateEarnings(position, finalWpm, t.getBurnoutEventCount());
+                    SponsorDeal sponsorDeal = cfg.getSponsorDeal();
+                    int sponsorBonus = sponsorDeal.calculateBonus(t, finalWpm, finalAccuracyPercent);
+                    int earnings = baseEarnings + sponsorBonus;
+
+                    cfg.addCoins(earnings);
 
                     TypistStatsStore.recordRaceResult(
                         t.getName(),
@@ -416,18 +424,23 @@ private void refreshTypistTabs() {
                         .append(", Accuracy: ").append(finalAccuracyPercent).append("%")
                         .append(" (\u0394 ").append(String.format("%+.2f", accuracyDelta)).append("%)")
                         .append(", Race Points: ").append(racePoints)
-                        .append(", Earnings: ").append(earnings)
+                        .append(", Earnings: ").append(baseEarnings);
+                    if (sponsorBonus > 0) {
+                        summary.append(" + Sponsor Bonus: ").append(sponsorBonus)
+                            .append(" (").append(sponsorDeal.getSponsorName()).append(")");
+                    }
+                    summary.append(", Total Coins: ").append(earnings)
                         .append(", Title: ").append(title);
-                        if (badges. isEmpty()) {
-                            summary.append("");
-                        }
-                        else {
-                            summary.append(" | Badges: ").append(String.join(", ", badges));
-                        }
-                        summary.append(", Burnout turns: ").append(t.getTotalBurnoutTurns());
-                        summary.append(", Burnout events: ").append(t.getBurnoutEventCount());
-                        summary.append(", Personal Best WPM: ").append(personalBest);
-                        summary.append("\n");
+                    if (badges. isEmpty()) {
+                        summary.append("");
+                    }
+                    else {
+                        summary.append(" | Badges: ").append(String.join(", ", badges));
+                    }
+                    summary.append(", Burnout turns: ").append(t.getTotalBurnoutTurns());
+                    summary.append(", Burnout events: ").append(t.getBurnoutEventCount());
+                    summary.append(", Personal Best WPM: ").append(personalBest);
+                    summary.append("\n");
                 }
 
                 summary.append("\nTip: Use 'Historical Data' and 'Compare Typists' for trends and side-by-side metrics.");
