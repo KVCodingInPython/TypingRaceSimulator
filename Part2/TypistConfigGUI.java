@@ -18,10 +18,20 @@ public class TypistConfigGUI extends JPanel {
     private JCheckBox wristSupportBox;
     private JCheckBox energyDrinkBox;
     private JCheckBox headphonesBox;
+    private JCheckBox betterKeyboardBox;
+    private JButton sponsorButton;
+    private JLabel coinBalanceLabel;
+    private JLabel sponsorLabel;
 
     // Default colours for progress bar and cursor
     private Color chosenCursorColour = Color.YELLOW;
     private Color chosenProgressBarColour = Color.BLUE;
+    private int availableCoins = 0;
+    private SponsorDeal sponsorDeal = SponsorDeal.none();
+    private boolean accessorySelectionLocked = false;
+
+    private static final int BETTER_KEYBOARD_COST = 25;
+    private static final int WRIST_SUPPORT_COST = 25;
 
 
 
@@ -102,9 +112,20 @@ public class TypistConfigGUI extends JPanel {
         keyboardTypeBox.setSelectedIndex(0);
 
         // Accessory components
-        wristSupportBox = new JCheckBox("Wrist Support");
+        wristSupportBox = new JCheckBox("Wrist Support Upgrade (25 coins)");
         energyDrinkBox = new JCheckBox("Energy Drink");
         headphonesBox = new JCheckBox("Headphones");
+        betterKeyboardBox = new JCheckBox("Better Keyboard Upgrade (25 coins)");
+
+        wristSupportBox.addActionListener(e -> handleUpgradeToggle(wristSupportBox, WRIST_SUPPORT_COST, "wrist support"));
+        betterKeyboardBox.addActionListener(e -> handleUpgradeToggle(betterKeyboardBox, BETTER_KEYBOARD_COST, "better keyboard"));
+
+        sponsorButton = new JButton("Choose Sponsor Deal");
+        sponsorButton.addActionListener(e -> chooseSponsorDeal());
+
+        coinBalanceLabel = new JLabel();
+        sponsorLabel = new JLabel();
+        refreshStatusLabels();
 
     }
 
@@ -141,11 +162,15 @@ public class TypistConfigGUI extends JPanel {
     }
 
     private JPanel buildAccessoriesBox() {
-        JPanel panel = new JPanel(new GridLayout(3, 1, 5, 5));
+        JPanel panel = new JPanel(new GridLayout(7, 1, 5, 5));
         panel.setBorder(BorderFactory.createTitledBorder("Accessories"));
+        panel.add(betterKeyboardBox);
         panel.add(wristSupportBox);
         panel.add(energyDrinkBox);
         panel.add(headphonesBox);
+        panel.add(sponsorButton);
+        panel.add(coinBalanceLabel);
+        panel.add(sponsorLabel);
 
         return panel;
     }
@@ -189,6 +214,72 @@ public class TypistConfigGUI extends JPanel {
 
     public boolean isHeadphonesEnabled() {
         return headphonesBox.isSelected();
+    }
+
+    public boolean hasBetterKeyboardUpgrade() {
+        return betterKeyboardBox.isSelected();
+    }
+
+    public SponsorDeal getSponsorDeal() {
+        return sponsorDeal;
+    }
+
+    public void addCoins(int amount) {
+        if (amount <= 0) {
+            return;
+        }
+        availableCoins += amount;
+        refreshStatusLabels();
+    }
+
+    private void chooseSponsorDeal() {
+        SponsorDeal[] choices = SponsorDeal.choices();
+        SponsorDeal selected = (SponsorDeal) JOptionPane.showInputDialog(
+            this,
+            "Pick a sponsor deal for this typist:",
+            "Sponsor Deals",
+            JOptionPane.PLAIN_MESSAGE,
+            null,
+            choices,
+            sponsorDeal);
+
+        if (selected != null) {
+            sponsorDeal = selected;
+            refreshStatusLabels();
+        }
+    }
+
+    private void handleUpgradeToggle(JCheckBox box, int cost, String upgradeName) {
+        if (accessorySelectionLocked) {
+            return;
+        }
+
+        if (!box.isSelected()) {
+            accessorySelectionLocked = true;
+            box.setSelected(true);
+            accessorySelectionLocked = false;
+            return;
+        }
+
+        if (availableCoins < cost) {
+            accessorySelectionLocked = true;
+            box.setSelected(false);
+            accessorySelectionLocked = false;
+            JOptionPane.showMessageDialog(
+                this,
+                "Not enough coins for " + upgradeName + ". Run more races to earn at least " + cost + " coins.",
+                "Insufficient Coins",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        availableCoins -= cost;
+        refreshStatusLabels();
+    }
+
+    private void refreshStatusLabels() {
+        coinBalanceLabel.setText("Coins available: " + availableCoins);
+        sponsorLabel.setText("Sponsor: " + sponsorDeal.toString());
     }
 
 }
