@@ -1,4 +1,7 @@
+import java.util.List;
+import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
+
 /**
  * A typing race simulation. Three typists race to complete a passage of text,
  * advancing character by character — or sliding backwards when they mistype.
@@ -13,9 +16,87 @@ import java.util.concurrent.TimeUnit;
 public class TypingRace
 {
     private int passageLength;   // Total characters in the passage to type
-    private Typist seat1Typist;
-    private Typist seat2Typist;
-    private Typist seat3Typist;
+    private List<Typist> typists;
+    private String passage;
+    private boolean raceFinished;
+    private RaceConfigGUI raceConfig;
+    // Modifier selection components
+    private int turnCount = 0;
+    private boolean autoCorrectEnabled;
+    private boolean caffeineModeEnabled;
+    private boolean nightShiftEnabled;
+
+    // Constructor for the GUI version
+    public TypingRace(RaceConfigGUI config, List<TypistConfigGUI> typistConfigs, String passage) {
+        this.passage = passage;
+        this.passageLength = passage.length();
+        this.raceFinished = false;
+        this.typists = new ArrayList<Typist>();
+        this.autoCorrectEnabled = config.isAutoCorrectEnabled();
+        this.caffeineModeEnabled = config.isCaffeineModeEnabled();
+        this.nightShiftEnabled = config.isNightShiftEnabled();
+        this.raceConfig = config;
+
+        // Dynamically builds one seat in the race for each typist provided in race config
+        for (TypistConfigGUI tc : typistConfigs) {
+            Typist t = new Typist(tc, config);
+            typists.add(t);
+        }
+    }
+
+    /**
+     * Advance the race by a single turn. Returns true if the race finished
+     * as a result of this turn.
+     */
+    public boolean advanceTurn() {
+        if (raceFinished) return true;
+        turnCount++;
+        for (Typist t : typists) {
+            advanceTypist(t, SLIDE_BACK_AMOUNT, BURNOUT_DURATION, this.raceConfig);
+            if (raceFinishedBy(t)) {
+                raceFinished = true;
+            }
+        }
+        return raceFinished;
+    }
+
+    public boolean advanceTurn(RaceConfigGUI config) {
+        if (raceFinished) {
+            return true;
+        }
+        turnCount++;
+        for (Typist t : typists) {
+            advanceTypist(t, SLIDE_BACK_AMOUNT, BURNOUT_DURATION, config);
+
+            if (turnCount <= 10 && this.caffeineModeEnabled == true) {
+                t.typeCharacter();  
+            }
+            if (raceFinishedBy(t)) {
+                raceFinished = true;
+            }
+        }
+        return raceFinished;
+    }
+    
+    public List<Typist> getTypists() {
+        return typists;
+    }
+
+    public String getPassage() {
+        return passage;
+    }
+
+    public int getPassageLength() {
+        return passageLength;
+    }
+
+    public boolean isRaceFinished() {
+        return raceFinished;
+    }
+
+
+
+
 
     // Accuracy thresholds for mistype and burnout events
     // (Ty tuned these values "by feel". They may need adjustment.)
@@ -33,9 +114,6 @@ public class TypingRace
     public TypingRace(int passageLength)
     {
         this.passageLength = passageLength;
-        seat1Typist = null;
-        seat2Typist = null;
-        seat3Typist = null;
     }
 
     /**
@@ -46,21 +124,13 @@ public class TypingRace
      */
     public void addTypist(Typist theTypist, int seatNumber)
     {
-        if (seatNumber == 1)
-        {
-            seat1Typist = theTypist;
-        }
-        else if (seatNumber == 2)
-        {
-            seat2Typist = theTypist;
-        }
-        else if (seatNumber == 3)
-        {
-            seat3Typist = theTypist;
-        }
-        else
-        {
-            System.out.println("Cannot seat typist at seat " + seatNumber + " — there is no such seat.");
+        for (Typist t : typists) {
+            for (int i = 0; i < typists.size(); i++) {
+                if (typists.get(i) == null) {
+                    typists.set(i, theTypist);
+                    return;
+                }
+            }
         }
     }
 
@@ -72,31 +142,49 @@ public class TypingRace
      * Note from Ty: "I didn't bother printing the winner at the end,
      * you can probably figure that out yourself."
      */
-    public void startRace()
+    public void startRace(RaceConfigGUI config)
     {
         long startNanos = System.nanoTime();
         boolean finished = false;
 
         // Reset all typists to the start of the passage
         // (Ty was in a hurry here)
-        seat1Typist.resetToStart();
-        seat2Typist.resetToStart();
-        seat3Typist.resetToStart();
+        for (Typist t : typists) {
+            t.resetToStart();
+        }
 
         while (!finished)
         {
+            // advance global turn counter (used by caffeine mode etc.)
+            this.turnCount++;
+            for (Typist t : typists) {
             // Advance each typist by one turn
-            advanceTypist(seat1Typist, SLIDE_BACK_AMOUNT, BURNOUT_DURATION);
-            advanceTypist(seat2Typist, SLIDE_BACK_AMOUNT, BURNOUT_DURATION);
-            advanceTypist(seat3Typist, SLIDE_BACK_AMOUNT, BURNOUT_DURATION);
+                advanceTypist(t, SLIDE_BACK_AMOUNT, BURNOUT_DURATION, config);
 
             // Print the current state of the race
             printRace(passageLength, startNanos);
 
             // Check if any typist has finished the passage
-            if ( raceFinishedBy(seat1Typist) || raceFinishedBy(seat2Typist) || raceFinishedBy(seat3Typist) )
+                if ( raceFinishedBy(t) )
             {
                 finished = true;
+                    double oldAccuracy = t.getAccuracy();
+                    double finalAccuracyPercent = this.calculateFinalAccuracyPercentage(t);
+                    double newAccuracy = finalAccuracyPercent / 100.0;
+                    t.setAccuracy(newAccuracy);
+                    System.out.println("And the winner is... " + t.getName() + "!");
+                    System.out.println("Final summary: accuracy " + finalAccuracyPercent + "%"
+                        + ", WPM " + getWPM(t, startNanos)
+                        + ", burnout turns " + t.getTotalBurnoutTurns());
+                    if (oldAccuracy < newAccuracy)
+                    {
+                        System.out.println("Final accuracy improved from " + oldAccuracy);
+                    }
+                    else
+                    {
+                        System.out.println("Final accuracy worsened from " + oldAccuracy);
+                    }
+                }
             }
 
             // Wait 200ms between turns so the animation is visible
@@ -107,51 +195,16 @@ public class TypingRace
 
 
         // TODO (Task 2a): Print the winner's name here
-        if (raceFinishedBy(seat1Typist))
-        {
-            double oldAccuracy = seat1Typist.getAccuracy();
-            double newAccuracy = Math.round(seat1Typist.getProgress() / (double) seat1Typist.getTotalCharsTyped() * 100.0) / 100.0;
-            seat1Typist.setAccuracy(newAccuracy);
-            System.out.println("And the winner is... " + seat1Typist.getName() + "!");
-            if (oldAccuracy < newAccuracy)
-            {
-                System.out.println("Final accuracy: " + newAccuracy + " (improved from " + oldAccuracy + ")");
+        // At the end of the simulation, print a summary for every typist
+        System.out.println("\nFinal summaries:");
+        for (Typist t : typists) {
+            double finalAccuracyPercent = this.calculateFinalAccuracyPercentage(t);
+            t.setAccuracy(finalAccuracyPercent / 100.0);
+            int wpm = getWPM(t, startNanos);
+            System.out.println(t.getName() + " — WPM: " + wpm + ", Accuracy: " + finalAccuracyPercent + "%, Burnout turns: " + t.getTotalBurnoutTurns());
             }
-            else
-            {
-                System.out.println("Final accuracy: " + newAccuracy + " (worsened from " + oldAccuracy + ")");
-            }       
-        }
-        else if (raceFinishedBy(seat2Typist))
-        {
-            double oldAccuracy = seat2Typist.getAccuracy();
-            double newAccuracy = Math.round(seat2Typist.getProgress() / (double) seat2Typist.getTotalCharsTyped() * 100.0) / 100.0;
-            seat2Typist.setAccuracy(newAccuracy);
-            System.out.println("And the winner is... " + seat2Typist.getName() + "!");
-            if (oldAccuracy < newAccuracy)
-            {
-                System.out.println("Final accuracy: " + newAccuracy + " (improved from " + oldAccuracy + ")");
-            }
-            else
-            {
-                System.out.println("Final accuracy: " + newAccuracy + " (worsened from " + oldAccuracy + ")");
-            }
-        }
-        else if (raceFinishedBy(seat3Typist))
-        {
-            double oldAccuracy = seat3Typist.getAccuracy();
-            double newAccuracy = Math.round(seat3Typist.getProgress() / (double) seat3Typist.getTotalCharsTyped() * 100.0) / 100.0;
-            seat3Typist.setAccuracy(newAccuracy);
-            System.out.println("And the winner is... " + seat3Typist.getName() + "!");
-            if (oldAccuracy < newAccuracy)
-            {
-                System.out.println("Final accuracy: " + newAccuracy + " (improved from " + oldAccuracy + ")");
-            }
-            else
-            {
-                System.out.println("Final accuracy: " + newAccuracy + " (worsened from " + oldAccuracy + ")");
-            }
-        }
+         
+     
     }
 
     /**
@@ -167,7 +220,7 @@ public class TypingRace
      *
      * @param theTypist the typist to advance
      */
-    private void advanceTypist(Typist theTypist, int SLIDE_BACK_AMOUNT, int BURNOUT_DURATION)
+    private void advanceTypist(Typist theTypist, int SLIDE_BACK_AMOUNT, int BURNOUT_DURATION, RaceConfigGUI config)
     {
         theTypist.resetMistyped(); // Clear mistyped state at the start of the turn
         
@@ -186,17 +239,71 @@ public class TypingRace
         }
 
         // Mistype check — the probability should reflect the typist's accuracy
-        else if (Math.random() < (1-theTypist.getAccuracy()) * MISTYPE_BASE_CHANCE)
+        double mistypeChance = MISTYPE_BASE_CHANCE * (1 - theTypist.getAccuracy());
+        if (this.nightShiftEnabled == true) {
+            mistypeChance *= 1.2; // 20% higher chance of mistyping under night shift
+        }
+
+        // Keyboard type modifiers to mistype chance
+        if (theTypist.getHeadphones()) {
+            mistypeChance = mistypeChance - (mistypeChance * 0.1); // Headphones reduce mistype chance by 10% ( +0.1x accuracy)
+        }
+        if (theTypist.hasBetterKeyboardUpgrade()) {
+            mistypeChance = mistypeChance - (mistypeChance * 0.25); // Better keyboard reduces mistype chance by 25%
+        }
+
+        if (!theTypist.getHeadphones()) {
+            if (theTypist.getKeyboardType() == 0) { // Mechanical
+                mistypeChance = mistypeChance - (mistypeChance * 0.2); // -0.2x mistype chance ( +0.2x accuracy)
+            }
+            else if (theTypist.getKeyboardType() == 2) { // Touchscreen
+                mistypeChance = mistypeChance + (mistypeChance * 1.8); // +1.8x mistype chance ( -1.8x accuracy)
+            }
+            else if (theTypist.getKeyboardType() == 3) { // Stenography
+                mistypeChance = mistypeChance - (mistypeChance * 0.4); // -0.4x mistype chance ( +0.4x accuracy)
+            }
+        }
+        if (Math.random() < mistypeChance)
         {
-            theTypist.slideBack(SLIDE_BACK_AMOUNT);
+            // Auto-correct reduces slide back by half
+            if (this.autoCorrectEnabled == true) {
+                SLIDE_BACK_AMOUNT = (int) Math.floor(SLIDE_BACK_AMOUNT / 2);
+            }
+            theTypist.slideBack(SLIDE_BACK_AMOUNT, config);
             
         }
 
         // Burnout check — pushing too hard increases burnout risk
         // (probability scales with accuracy squared, capped at ~0.05)
-        else if (Math.random() < 0.05 * theTypist.getAccuracy() * theTypist.getAccuracy())
+            else
+            {
+                double burnoutProb = 0.05 * theTypist.getAccuracy() * theTypist.getAccuracy();
+
+                // If caffeine mode is enabled in the race config, increase burnout risk
+                if (this.caffeineModeEnabled == true) {
+                    burnoutProb *= 1.5; // 50% higher risk under caffeine
+                }
+
+                // Typing style modifiers to burnout risk
+                if (theTypist.getTypingStyle() == 0) { // Touch Typist
+                    burnoutProb = burnoutProb - (burnoutProb * 0.2); // -0.2x burnout risk
+        
+                } else if (theTypist.getTypingStyle() == 1) { // Hunt & Peck
+                    burnoutProb = burnoutProb + (burnoutProb * 0.1); // +0.1x burnout risk
+                    
+                } else if (theTypist.getTypingStyle() == 2) { // Phone Thumbs
+                    burnoutProb = burnoutProb + (burnoutProb * 0.3); // +0.3x burnout risk
+
+                } else if (theTypist.getTypingStyle() == 3) { // Voice-to-Text
+                    burnoutProb = burnoutProb + (burnoutProb * 0.25); // +0.25x burnout risk
+                }
+                if (Math.random() < burnoutProb)
         {
+                    if (theTypist.getWristSupport()) {
+                        BURNOUT_DURATION = (int) Math.floor(BURNOUT_DURATION * 0.75); // Wrist support reduces burnout duration by 25%, rounds down to int
+                    }
             theTypist.burnOut(BURNOUT_DURATION);
+                }
         }
     }
 
@@ -232,16 +339,10 @@ public class TypingRace
         multiplePrint('=', passageLength + 3);
         System.out.println();
 
-        printSeat(seat1Typist, startNanos);
+        for (Typist t: typists) {
+            printSeat(t, startNanos);
         System.out.println();
-
-     
-        printSeat(seat2Typist, startNanos);
-        System.out.println();
-
-    
-        printSeat(seat3Typist, startNanos);
-        System.out.println();
+        }
 
         multiplePrint('=', passageLength + 3);
         System.out.println();
@@ -306,13 +407,13 @@ public class TypingRace
                 + " (Accuracy: " + theTypist.getAccuracy() + ")" + " (WPM: " + getWPM(theTypist, startNanos) + ")");
         }
     }
-     private int getWPM(Typist theTypist, long startNanos)
+     public static int calculateWPM(int passageLength, int progress, long startNanos)
     {
         int WPM;
 
-        double progress = theTypist.getProgress() / (double) passageLength;
+        double progressRatio = progress / (double) passageLength;
 
-        if (progress == 0.0)
+        if (progressRatio == 0.0)
         {
             return 0;
         }
@@ -320,13 +421,104 @@ public class TypingRace
         long elapsedNanos = System.nanoTime() - startNanos;
         double elapsedSeconds = elapsedNanos / 1_000_000_000.0;
     
-        double estimatedTotalSeconds = elapsedSeconds / progress;
+        double estimatedTotalSeconds = elapsedSeconds / progressRatio;
         double estimatedMinutes = estimatedTotalSeconds / 60.0;
 
         WPM =  (int) (passageLength / 5.0 / estimatedMinutes);
         WPM = (int) Math.round(WPM);
         return WPM;
         
+    }
+
+    /**
+     * Calculate the final accuracy for a typist based on progress and total
+     * characters typed. Returns a value rounded to two decimal places in the
+     * range [0.0, 1.0]. This is provided as a shared helper for GUI and
+     * simulation code.
+     */
+    public double calculateFinalAccuracy(Typist typist)
+    {
+        return calculateFinalAccuracyPercentage(typist) / 100.0;
+    }
+
+    /**
+     * Final accuracy percentage computed as proportion of the passage
+     * correctly completed (progress / passageLength * 100). Mistypes are
+     * intentionally not counted in this metric per spec.
+     */
+    public double calculateFinalAccuracyPercentage(Typist typist)
+    {
+        if (this.passageLength <= 0) {
+            return Math.round(typist.getAccuracy() * 10000.0) / 100.0;
+        }
+        double accuracyPercent = (typist.getProgress() * 100.0) / this.passageLength;
+        return Math.round(accuracyPercent * 100.0) / 100.0;
+    }
+
+    
+
+     private int getWPM(Typist theTypist, long startNanos)
+    {
+        return calculateWPM(passageLength, theTypist.getProgress(), startNanos);
+    }
+
+    public static int computeRacePoints(int position, int wpm, int burnoutEvents) {
+        int points = 0;
+        // Points for finishing position
+        if (position == 1) {
+            points += 3;
+        }
+        else if (position == 2) {
+            points += 2;
+        }
+        else if (position == 3) {
+            points += 1;
+        }
+
+        // Bonus points for WPM thresholds
+        if (wpm >= 20) {
+            points += 3;
+        }
+        else if (wpm >= 15) {
+            points += 2;
+        }
+        else if (wpm >= 10) {
+            points += 1;
+        }
+
+        // Penalty points for burnout events
+        points -= burnoutEvents; // 1 point penalty per burnout event
+
+        return points;
+    }
+
+    public static int calculateEarnings(int position, int wpm, int burnoutEvents) {
+        int baseEarnings = 0;
+        // Base earnings for finishing positions 
+        if (position == 1) {
+            baseEarnings += 20;
+        }
+        else if (position == 2) {
+            baseEarnings += 10;
+        }
+        else if (position == 3) {
+            baseEarnings += 5;
+        }
+
+        // Bonus earnings for WPM thresholds
+        if (wpm >= 20) {
+            baseEarnings += 20;
+        }
+        else if (wpm >= 15) {
+            baseEarnings += 10;
+        }
+        else if (wpm >= 10) {
+            baseEarnings += 5;
+        }
+
+        // Penalty for burnout events
+        baseEarnings -= burnoutEvents * 5; // £5 penalty per burnout event
+        return Math.max(baseEarnings, 0); // Earnings can't be negative
     }
 
     
@@ -353,7 +545,7 @@ public class TypingRace
     race.addTypist(new Typist('①', "TURBOFINGERS", 0.85), 1);
     race.addTypist(new Typist('②', "QWERTY_QUEEN",  0.60), 2);
     race.addTypist(new Typist('③', "HUNT_N_PECK",   0.30), 3);
-    race.startRace();
+    race.startRace(new RaceConfigGUI());
     
 }
 }

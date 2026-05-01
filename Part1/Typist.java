@@ -26,6 +26,115 @@ public class Typist
     private double typist_accuracy;
     private boolean JUSTMISTYPED;
     private int total_characters_typed;
+    private int total_burnout_turns;
+    private int burnout_event_count;
+
+    // GUI-related fields 
+    private java.awt.Color highlightCharacters; // highlightCharacters represents the colour of characters correctly typed 
+    private java.awt.Color progressBarColour; // progressBarColour represents the colour of the typist's progress bar in the GUI
+    private java.awt.Color cursorColour; // cursorColour represents the colour of the typist's cursor in the GUI
+
+    private double baseAccuracy = 0.5; // Base accuracy for all typists, can be modified by typing style and keyboard type
+
+    // Typing style index 
+    // 0 = Touch Typist, 1 = Hunt & Peck, 2 = Phone Thumbs, 3 = Voice-to-Text
+    private int typing_style;
+
+    // Keyboard type index
+    // 0 = Mechanical, 1 = Membrane, 2 = Touchscreen, 3 = Stenography
+    private int keyboard_type;
+
+    // Accessories
+    private boolean hasWristSupport;
+    private boolean hasEnergyDrink;
+    private boolean hasHeadphones;
+    private boolean hasBetterKeyboardUpgrade;
+
+    // Caffeine mode turn counter
+    private int caffeine_turn_count= 0;
+
+
+
+    // Constructor
+    public Typist(TypistConfigGUI config, RaceConfigGUI raceConfig) {
+        this.typist_name = config.getName();
+        this.typist_position = config.getSymbol();
+        this.highlightCharacters = config.getCursorColour();
+        this.typing_style = config.getTypingStyle();
+        this.keyboard_type = config.getKeyboardType();
+        this.hasWristSupport = config.isWristSupportEnabled();
+        this.hasEnergyDrink = config.isEnergyDrinkEnabled();
+        this.hasHeadphones = config.isHeadphonesEnabled();
+        this.typist_accuracy = TypistStatsStore.getRankAdjustedStartingAccuracy(this.typist_name, baseAccuracy);
+
+
+        // Base stats
+        this.typist_progress = 0;
+        this.TYPISTISBURNTOUT = false;
+        this.burnout_remaining = 0;
+        this.JUSTMISTYPED = false;
+        this.total_characters_typed = 0;
+        this.total_burnout_turns = 0;
+        this.burnout_event_count = 0;
+
+
+
+    }
+
+    public double getAdjustedAccuracy(int turnCount, int passageLength)
+    {
+        double accuracy = baseAccuracy;
+
+        // Typing style modifiers to accuracy
+        switch (typing_style) {
+            case 0: accuracy = accuracy + 0.10; break; // Touch Typist +0.10 accuracy
+            case 1: accuracy = accuracy - 0.05; break; // Hunt & Peck -0.05 accuracy
+            case 2: accuracy = accuracy - 0.10; break; // Phone Thumbs -0.10 accuracy
+            case 3: accuracy = accuracy + 0.05; break; // Voice-to-Text +0.05 accuracy
+        }
+
+        if (hasEnergyDrink) {
+            if (turnCount <= passageLength / 2) { // Energy drink boosts accuracy by 20% for the first half of the passage
+                accuracy = accuracy + (accuracy * 0.20);
+            }
+            else { // After halfway point, energy drink causes a 10% accuracy penalty due to crash
+                accuracy = accuracy - (accuracy * 0.10);
+            }
+        }
+
+        if (accuracy < 0.0) {
+            accuracy = 0.0;
+        }
+        else if (accuracy > 1.0) {
+            accuracy = 1.0;
+        }
+
+        return accuracy;
+    }
+
+    public int getTypingStyle() {
+        return this.typing_style;
+    }
+
+    public int getKeyboardType() {
+        return this.keyboard_type;
+    }
+
+    public boolean getWristSupport() {
+        return this.hasWristSupport;
+    }
+    
+    public boolean getEnergyDrink() {
+        return this.hasEnergyDrink;
+    }
+
+    public boolean getHeadphones() {
+        return this.hasHeadphones;
+    }
+
+    public boolean hasBetterKeyboardUpgrade() {
+        return this.hasBetterKeyboardUpgrade;
+    }
 
 
 
@@ -49,6 +158,8 @@ public class Typist
         this.burnout_remaining = 0;
         this.JUSTMISTYPED = false;
         this.total_characters_typed = 0;
+        this.total_burnout_turns = 0;
+        this.burnout_event_count = 0;
     }
 
 
@@ -64,6 +175,8 @@ public class Typist
     {
         this.TYPISTISBURNTOUT = true;
         this.burnout_remaining = turns;
+        this.total_burnout_turns = this.total_burnout_turns + turns;
+        this.burnout_event_count = this.burnout_event_count + 1;
         
         return;
 
@@ -168,6 +281,17 @@ public class Typist
         return this.total_characters_typed;
     }
 
+
+    public int getTotalBurnoutTurns()
+    {
+        return this.total_burnout_turns;
+    }
+
+    public int getBurnoutEventCount()
+    {
+        return this.burnout_event_count;
+    }
+
     /**
      * Resets the typist to their initial state, ready for a new race.
      * Progress returns to zero, burnout is cleared entirely.
@@ -178,6 +302,8 @@ public class Typist
         this.burnout_remaining = 0;
         this.typist_progress = 0;
         this.total_characters_typed = 0;
+        this.total_burnout_turns = 0;
+        this.burnout_event_count = 0;
 
         return;
 
@@ -217,9 +343,13 @@ public class Typist
      *
      * @param amount the number of characters to slide back (must be positive)
      */
-    public void slideBack(int amount)
+    public void slideBack(int amount, RaceConfigGUI raceConfig)
     {
         this.JUSTMISTYPED = true;
+        if (raceConfig.isAutoCorrectEnabled() == true) {
+            amount = (int) Math.ceil(amount / 2.0);
+        }
+
         if (amount > 0)
         {
             if ((this.typist_progress - amount) >= 0)
@@ -230,6 +360,7 @@ public class Typist
             else
             {
                 this.typist_progress = 0;
+                System.out.println("Typist slides back to start");
              
             }
         }
@@ -281,6 +412,7 @@ public class Typist
 
 
 }
+/*
 class Main {
     public static void main(String[] args) {
         // Create new Typist object
@@ -288,27 +420,15 @@ class Main {
 
         /* //'Typist Progress cannot go below 0' tests: Test Case 1
          typer1.resetToStart();
-         System.out.println(typer1.getProgress());
          typer1.slideBack(5);
-         if (typer1.getProgress() == 0) {
-                System.out.println("Progress cannot go below 0: PASSED");
-                System.out.println("Typist slides back to start");
-        }
-        else {
-                System.out.println("Progress cannot go below 0: FAILED");
-         }
          System.out.println(typer1.isBurntOut());
-         System.out.println("Is typist burnt out currently: " + typer1.isBurntOut());
-         System.out.println("Burnout turns remaining: " + typer1.getBurnoutTurnsRemaining());
          */
          
         
-
-        /* // 'resetToStart() method clears both progress and burnout state' tests: Test Case 2
-        System.out.println("Is typist burnt out currently: " + typer1.isBurntOut());
+        // 'resetToStart() method clears both progress and burnout state' tests: Test Case 3
+        /* System.out.println("h");;
+        typer1.TYPISTISBURNTOUT = true;
         typer1.burnOut(5);
-        System.out.println("Is typist burnt out currently: " + typer1.isBurntOut());
-        System.out.println("Burnout turns remaining: " + typer1.getBurnoutTurnsRemaining());
         for (int i = 0; i <= 10; i++)
         {
             typer1.typeCharacter();
@@ -318,17 +438,11 @@ class Main {
         System.out.println(typer1.getProgress());
 
         typer1.resetToStart();
-        for (int i = 1; i <= 10; i++)
-        {
-            typer1.typeCharacter();
-        }
-
         System.out.println(typer1.getBurnoutTurnsRemaining());
         System.out.println(typer1.getProgress());
         */
         
-
-       /* // 'Burnout prevents typing' test: Test Case 3
+       /* // 'Burnout prevents typing' test: Test Case 2
         System.out.println("=== BURNOUT TEST ===");
         
         // Start fresh and type some characters
@@ -375,16 +489,13 @@ class Main {
         System.out.println(typer1.getAccuracy());
         typer1.setAccuracy(0.0);
         System.out.println(typer1.getAccuracy());
-        typer1.setAccuracy(-3.0);
-        System.out.println(typer1.getAccuracy());
         typer1.setAccuracy(0.8);
         System.out.println(typer1.getAccuracy());
         typer1.setAccuracy(1.0);
         System.out.println(typer1.getAccuracy());
         */
         
-
-        /* // Normal forward movement via typeCharacter() : Test Case 5
+       /*// Normal forward movement via typeCharacter() : Test Case 4
 
        typer1.resetToStart();
        System.out.println(typer1.getProgress());
@@ -406,5 +517,4 @@ class Main {
        */
        
 
-    }
-}
+
