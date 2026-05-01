@@ -65,7 +65,6 @@ public class Typist
         this.hasWristSupport = config.isWristSupportEnabled();
         this.hasEnergyDrink = config.isEnergyDrinkEnabled();
         this.hasHeadphones = config.isHeadphonesEnabled();
-        this.hasBetterKeyboardUpgrade = config.hasBetterKeyboardUpgrade();
         this.typist_accuracy = TypistStatsStore.getRankAdjustedStartingAccuracy(this.typist_name, baseAccuracy);
 
 

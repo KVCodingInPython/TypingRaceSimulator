@@ -18,19 +18,23 @@ public class TypistConfigGUI extends JPanel {
     private JCheckBox wristSupportBox;
     private JCheckBox energyDrinkBox;
     private JCheckBox headphonesBox;
-    private JCheckBox betterKeyboardBox;
     private JButton sponsorButton;
-    private JLabel coinBalanceLabel;
+    private JLabel earningsBalanceLabel;
     private JLabel sponsorLabel;
 
     // Default colours for progress bar and cursor
     private Color chosenCursorColour = Color.YELLOW;
     private Color chosenProgressBarColour = Color.BLUE;
-    private int availableCoins = 0;
     private SponsorDeal sponsorDeal = SponsorDeal.none();
     private boolean accessorySelectionLocked = false;
+    private boolean keyboardSelectionLocked = false;
+    private int availableEarnings = 0;
+    private int keyboardCostPaid = 0;
 
-    private static final int BETTER_KEYBOARD_COST = 25;
+    private static final int MECHANICAL_KEYBOARD_COST = 0;
+    private static final int MEMBRANE_KEYBOARD_COST = 10;
+    private static final int TOUCHSCREEN_KEYBOARD_COST = 15;
+    private static final int STENOGRAPHY_KEYBOARD_COST = 20; 
     private static final int WRIST_SUPPORT_COST = 25;
 
 
@@ -58,6 +62,7 @@ public class TypistConfigGUI extends JPanel {
     private void createComponents() {
         // typist details components
         nameField = new JTextField("Enter name of typist", 15);
+        nameField.addActionListener(e -> syncEarningsFromTypistName());
         symbolField = new JTextField("Enter Symbol (a character or an emoji)", 3);
 
         // Highlight colour for cursor
@@ -110,20 +115,19 @@ public class TypistConfigGUI extends JPanel {
         String[] keyboardTypes = {"Mechanical", "Membrane", "Touchscreen", "Stenography"};
         keyboardTypeBox = new JComboBox<>(keyboardTypes);
         keyboardTypeBox.setSelectedIndex(0);
+        keyboardTypeBox.addActionListener(e -> handleKeyboardSelection());
 
         // Accessory components
         wristSupportBox = new JCheckBox("Wrist Support Upgrade (25 coins)");
         energyDrinkBox = new JCheckBox("Energy Drink");
         headphonesBox = new JCheckBox("Headphones");
-        betterKeyboardBox = new JCheckBox("Better Keyboard Upgrade (25 coins)");
 
         wristSupportBox.addActionListener(e -> handleUpgradeToggle(wristSupportBox, WRIST_SUPPORT_COST, "wrist support"));
-        betterKeyboardBox.addActionListener(e -> handleUpgradeToggle(betterKeyboardBox, BETTER_KEYBOARD_COST, "better keyboard"));
 
         sponsorButton = new JButton("Choose Sponsor Deal");
         sponsorButton.addActionListener(e -> chooseSponsorDeal());
 
-        coinBalanceLabel = new JLabel();
+        earningsBalanceLabel = new JLabel();
         sponsorLabel = new JLabel();
         refreshStatusLabels();
 
@@ -164,12 +168,11 @@ public class TypistConfigGUI extends JPanel {
     private JPanel buildAccessoriesBox() {
         JPanel panel = new JPanel(new GridLayout(7, 1, 5, 5));
         panel.setBorder(BorderFactory.createTitledBorder("Accessories"));
-        panel.add(betterKeyboardBox);
         panel.add(wristSupportBox);
         panel.add(energyDrinkBox);
         panel.add(headphonesBox);
         panel.add(sponsorButton);
-        panel.add(coinBalanceLabel);
+        panel.add(earningsBalanceLabel);
         panel.add(sponsorLabel);
 
         return panel;
@@ -216,10 +219,6 @@ public class TypistConfigGUI extends JPanel {
         return headphonesBox.isSelected();
     }
 
-    public boolean hasBetterKeyboardUpgrade() {
-        return betterKeyboardBox.isSelected();
-    }
-
     public SponsorDeal getSponsorDeal() {
         return sponsorDeal;
     }
@@ -228,8 +227,93 @@ public class TypistConfigGUI extends JPanel {
         if (amount <= 0) {
             return;
         }
-        availableCoins += amount;
+        availableEarnings += amount;
         refreshStatusLabels();
+    }
+
+    private void syncEarningsFromTypistName() {
+        String typistName = get_Name();
+        TypistCareerStats stats = TypistStatsStore.getStats(typistName);
+        availableEarnings = stats == null ? 0 : stats.getTotalEarnings();
+        keyboardCostPaid = 0;
+        refreshStatusLabels();
+    }
+
+    private boolean spendEarnings(int amount, String reason) {
+        if (amount <= 0) {
+            return true;
+        }
+        if (availableEarnings < amount) {
+            return false;
+        }
+
+        String typistName = get_Name();
+        TypistCareerStats stats = typistName.isEmpty() ? null : TypistStatsStore.getStats(typistName);
+        if (stats != null) {
+            TypistStatsStore.recordEarningsDeduction(typistName, amount, reason);
+            // refresh local view from persistent store
+            TypistCareerStats updated = TypistStatsStore.getStats(typistName);
+            availableEarnings = updated == null ? availableEarnings - amount : updated.getTotalEarnings();
+        } else {
+            // no persistent record - update local balance
+            availableEarnings -= amount;
+        }
+        refreshStatusLabels();
+        return true;
+    }
+
+    private void handleKeyboardSelection() {
+        if (keyboardSelectionLocked) {
+            return;
+        }
+        String typistName = get_Name();
+        int selectedIndex = keyboardTypeBox.getSelectedIndex();
+        int selectedCost = getKeyboardSelectionCost(selectedIndex);
+        int additionalCost = Math.max(0, selectedCost - keyboardCostPaid);
+        if (additionalCost == 0) {
+            return;
+        }
+
+        if (!spendEarnings(additionalCost, "Keyboard upgrade: " + keyboardTypeBox.getSelectedItem())) {
+            keyboardSelectionLocked = true;
+            keyboardTypeBox.setSelectedIndex(getKeyboardSelectionForPaidCost(keyboardCostPaid));
+            keyboardSelectionLocked = false;
+            JOptionPane.showMessageDialog(
+                this,
+                "Not enough earnings for this keyboard. Run more races to earn at least " + additionalCost + " more earnings.",
+                "Insufficient Earnings",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        keyboardCostPaid = selectedCost;
+        refreshStatusLabels();
+    }
+
+    private int getKeyboardSelectionCost(int selectedIndex) {
+        if (selectedIndex == 1) {
+            return MEMBRANE_KEYBOARD_COST;
+        }
+        if (selectedIndex == 2) {
+            return TOUCHSCREEN_KEYBOARD_COST;
+        }
+        if (selectedIndex == 3) {
+            return STENOGRAPHY_KEYBOARD_COST;
+        }
+        return MECHANICAL_KEYBOARD_COST;
+    }
+
+    private int getKeyboardSelectionForPaidCost(int paidCost) {
+        if (paidCost >= STENOGRAPHY_KEYBOARD_COST) {
+            return 3;
+        }
+        if (paidCost >= TOUCHSCREEN_KEYBOARD_COST) {
+            return 2;
+        }
+        if (paidCost >= MEMBRANE_KEYBOARD_COST) {
+            return 1;
+        }
+        return 0;
     }
 
     private void chooseSponsorDeal() {
@@ -261,24 +345,24 @@ public class TypistConfigGUI extends JPanel {
             return;
         }
 
-        if (availableCoins < cost) {
+        if (!spendEarnings(cost, upgradeName + " upgrade")) {
             accessorySelectionLocked = true;
             box.setSelected(false);
             accessorySelectionLocked = false;
             JOptionPane.showMessageDialog(
                 this,
-                "Not enough coins for " + upgradeName + ". Run more races to earn at least " + cost + " coins.",
-                "Insufficient Coins",
+                "Not enough earnings for " + upgradeName + ". Run more races to earn at least " + cost + " earnings.",
+                "Insufficient Earnings",
                 JOptionPane.WARNING_MESSAGE);
             return;
         }
 
-        availableCoins -= cost;
+        // `spendEarnings` already updates `availableEarnings` (persisted or local), so just refresh
         refreshStatusLabels();
     }
 
     private void refreshStatusLabels() {
-        coinBalanceLabel.setText("Coins available: " + availableCoins);
+        earningsBalanceLabel.setText("Earnings available: " + availableEarnings);
         sponsorLabel.setText("Sponsor: " + sponsorDeal.toString());
     }
 

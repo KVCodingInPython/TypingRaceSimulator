@@ -237,7 +237,7 @@ private void refreshTypistTabs() {
 
         startRace = new JButton("Start Race ->");
         startRace.setFont(new Font("Arial", Font.BOLD, 14));
-        startRace.addActionListener(e -> handleStart());
+        startRace.addActionListener(e -> StartRaceGUI());
 
         JPanel bar = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         bar.add(historyButton);
@@ -258,7 +258,7 @@ private void refreshTypistTabs() {
     }
 
     // Handles start button click
-    private void handleStart() {
+    private void StartRaceGUI() {
         String passage = customRadio.isSelected() ? customInput.getText().trim() : passagePreview.getText().trim();
 
         if (passage.isEmpty()) {

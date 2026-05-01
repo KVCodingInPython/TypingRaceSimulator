@@ -1,3 +1,4 @@
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -9,9 +10,11 @@ public class TypistCareerStats {
     private int personalBestWpm = 0;
     private int totalPoints = 0;
     private int totalEarnings = 0;
+    private int totalEarningsDeducted = 0;
     private int consecutiveWins = 0;
     private int burnoutFreeRaceStreak = 0;
     private final Set<String> badges = new LinkedHashSet<>();
+    private final List<EarningsAdjustment> earningsAdjustments = new ArrayList<>();
     private String title = "Rookie";
 
     public void addRecord(RaceRecord record) {
@@ -108,11 +111,19 @@ public class TypistCareerStats {
     }
 
     public int getTotalEarnings() {
-        return totalEarnings;
+        return Math.max(0, totalEarnings - totalEarningsDeducted);
     }
 
     public void deductEarnings(int amount) {
-        this.totalEarnings = Math.max(0, totalEarnings - amount);
+        deductEarnings(amount, LocalDateTime.now(), "Upgrade purchase");
+    }
+
+    public void deductEarnings(int amount, LocalDateTime timestamp, String reason) {
+        if (amount <= 0) {
+            return;
+        }
+        this.totalEarningsDeducted += amount;
+        this.earningsAdjustments.add(new EarningsAdjustment(timestamp, amount, reason));
     }
 
     public int getConsecutiveWins() {
@@ -129,6 +140,34 @@ public class TypistCareerStats {
 
     public List<String> getBadges() {
         return Collections.unmodifiableList(new ArrayList<>(badges));
+    }
+
+    public List<EarningsAdjustment> getEarningsAdjustments() {
+        return Collections.unmodifiableList(earningsAdjustments);
+    }
+
+    public static class EarningsAdjustment {
+        private final LocalDateTime timestamp;
+        private final int amount;
+        private final String reason;
+
+        public EarningsAdjustment(LocalDateTime timestamp, int amount, String reason) {
+            this.timestamp = timestamp;
+            this.amount = amount;
+            this.reason = reason;
+        }
+
+        public LocalDateTime getTimestamp() {
+            return timestamp;
+        }
+
+        public int getAmount() {
+            return amount;
+        }
+
+        public String getReason() {
+            return reason;
+        }
     }
 
 

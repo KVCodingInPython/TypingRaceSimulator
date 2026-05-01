@@ -71,6 +71,23 @@ public class TypistStatsStore {
         }
     }
 
+    public static synchronized void recordEarningsDeduction(String typistName, int amount, String reason) {
+        if (amount <= 0) {
+            return;
+        }
+        if (restrictToActiveRace && !ACTIVE_RACE_PARTICIPANTS.contains(typistName)) {
+            return;
+        }
+
+        TypistCareerStats stats = STATS_BY_NAME.computeIfAbsent(typistName, k -> new TypistCareerStats());
+        stats.deductEarnings(amount, LocalDateTime.now(), reason == null ? "Upgrade purchase" : reason);
+        try {
+            saveToCsv();
+        } catch (Exception e) {
+            System.err.println("Warning: could not persist typist stats: " + e.getMessage());
+        }
+    }
+
     public static synchronized TypistCareerStats getStats(String typistName) {
         return STATS_BY_NAME.get(typistName);
     }
@@ -125,14 +142,15 @@ public class TypistStatsStore {
     private static synchronized void saveToCsv() throws Exception {
         List<String> lines = new ArrayList<>();
         // header
-        lines.add("typistName,timestamp,finishingPosition,wpm,accuracyPercent,burnoutTurns,burnoutEvents,points,earnings");
+        lines.add("entryType,typistName,timestamp,finishingPosition,wpm,accuracyPercent,burnoutTurns,burnoutEvents,points,earnings,adjustmentAmount,reason");
 
         for (Map.Entry<String, TypistCareerStats> entry : STATS_BY_NAME.entrySet()) {
             String name = entry.getKey();
             TypistCareerStats stats = entry.getValue();
             for (RaceRecord r : stats.getRaceHistory()) {
                 String ln = String.format(
-                    "%s,%s,%d,%d,%.4f,%d,%d,%d,%d",
+                    "%s,%s,%s,%d,%d,%.4f,%d,%d,%d,%d,%d,%s",
+                    escapeCsv("RACE"),
                     escapeCsv(name),
                     r.getTimestamp().format(TS_FORMAT),
                     r.getFinishingPosition(),
@@ -141,7 +159,26 @@ public class TypistStatsStore {
                     r.getBurnoutTurns(),
                     r.getBurnoutEvents(),
                     r.getPoints(),
-                    r.getEarnings());
+                    r.getEarnings(),
+                    0,
+                    escapeCsv(""));
+                lines.add(ln);
+            }
+            for (TypistCareerStats.EarningsAdjustment adjustment : stats.getEarningsAdjustments()) {
+                String ln = String.format(
+                    "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%d,%s",
+                    escapeCsv("ADJUSTMENT"),
+                    escapeCsv(name),
+                    adjustment.getTimestamp().format(TS_FORMAT),
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    adjustment.getAmount(),
+                    escapeCsv(adjustment.getReason()));
                 lines.add(ln);
             }
         }
@@ -157,6 +194,38 @@ public class TypistStatsStore {
                 try {
                     // simple CSV parse (name may contain commas escaped as double quotes)
                     List<String> parts = parseCsvLine(line);
+                    if (parts.isEmpty()) return;
+
+                    boolean hasEntryType = "RACE".equals(parts.get(0)) || "ADJUSTMENT".equals(parts.get(0));
+                    if (hasEntryType) {
+                        String entryType = parts.get(0);
+                        String name = unescapeCsv(parts.get(1));
+                        LocalDateTime ts = LocalDateTime.parse(parts.get(2), TS_FORMAT);
+
+                        TypistCareerStats stats = STATS_BY_NAME.computeIfAbsent(name, k -> new TypistCareerStats());
+                        if ("ADJUSTMENT".equals(entryType)) {
+                            int adjustmentAmount = Integer.parseInt(parts.get(10));
+                            String reason = parts.size() > 11 ? unescapeCsv(parts.get(11)) : "Upgrade purchase";
+                            stats.deductEarnings(adjustmentAmount, ts, reason);
+                            return;
+                        }
+
+                        int finishingPosition = Integer.parseInt(parts.get(3));
+                        int wpm = Integer.parseInt(parts.get(4));
+                        double accuracyPercent = Double.parseDouble(parts.get(5));
+                        int burnoutTurns = Integer.parseInt(parts.get(6));
+                        int burnoutEvents = Integer.parseInt(parts.get(7));
+                        int points = parts.size() >= 9
+                            ? Integer.parseInt(parts.get(8))
+                            : TypingRace.computeRacePoints(finishingPosition, wpm, burnoutEvents);
+                        int earnings = parts.size() >= 10
+                            ? Integer.parseInt(parts.get(9))
+                            : TypingRace.calculateEarnings(finishingPosition, wpm, burnoutEvents);
+
+                        stats.addRecord(new RaceRecord(ts, finishingPosition, wpm, accuracyPercent, burnoutTurns, burnoutEvents, points, earnings));
+                        return;
+                    }
+
                     if (parts.size() < 8) return;
                     String name = unescapeCsv(parts.get(0));
                     LocalDateTime ts = LocalDateTime.parse(parts.get(1), TS_FORMAT);
